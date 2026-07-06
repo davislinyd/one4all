@@ -44,6 +44,52 @@ reload_nginx() {
         return 1
     fi
 
+    # 決定目標設定檔寫入路徑
+    local target_nginx_conf=""
+    if [ "${OS_TYPE}" = "Darwin" ]; then
+        if [ -d "/opt/homebrew/etc/nginx/servers" ]; then
+            target_nginx_conf="/opt/homebrew/etc/nginx/servers/one4all.conf"
+        else
+            target_nginx_conf="/usr/local/etc/nginx/servers/one4all.conf"
+        fi
+    else
+        target_nginx_conf="/etc/nginx/sites-available/one4all"
+    fi
+
+    # 動態讀取 one4all.json 中的 nginx.port 並寫入目的地 Nginx 設定檔
+    echo "正在根據 one4all.json 更新 Nginx 設定檔 (寫入至 ${target_nginx_conf})..."
+    local gen_status
+    gen_status=$(python3 -c "
+import json, re, os, sys
+try:
+    with open('${CONFIG_FILE}', 'r') as f:
+        config = json.load(f)
+    port = config.get('nginx', {}).get('port', 9002)
+    
+    template_path = os.path.join('${SCRIPT_DIR}', 'nginx.conf')
+    with open(template_path, 'r') as f:
+        content = f.read()
+        
+    updated = re.sub(r'listen\s+\d+;', f'listen {port};', content)
+    
+    # 若在 Linux 下寫入 /etc/nginx 可能需要權限，捕獲異常
+    with open('${target_nginx_conf}', 'w') as f:
+        f.write(updated)
+    print(f'SUCCESS:已將 Nginx 對外 Port 設定為 {port}')
+except Exception as e:
+    print(f'ERROR:{e}', file=sys.stderr)
+    sys.exit(1)
+" 2>&1)
+
+    if [[ "${gen_status}" == ERROR:* ]]; then
+        echo "錯誤: 無法更新 Nginx 設定檔！"
+        echo "詳細錯誤: ${gen_status}"
+        echo "提示: 如果在 Linux 上運行，請嘗試以 sudo 權限執行此腳本 (例如: sudo ./one4all reload)。"
+        return 1
+    else
+        echo "${gen_status#SUCCESS:}"
+    fi
+
     # 測試 Nginx 設定 (macOS 不需要 sudo)
     echo "測試 Nginx 設定檔語法..."
     if [ "${OS_TYPE}" = "Darwin" ]; then
