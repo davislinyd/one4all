@@ -61,6 +61,8 @@ graph LR
   Go 啟動子服務時，會自動解析 `args` 欄位。若發現 `{{.Port}}` 佔位符，會動態將其替換為實際的 `port` 數值。這實現了 Nginx 轉發埠與 Python 監聽埠的單一水源，杜絕手動修改帶來的 Port 不一致錯誤。
 * **彙總日誌截獲 (Log Aggregation)**：  
   Go 透過管道（Pipe）捕獲所有子服務的 `stdout` 和 `stderr`，在行首動態加上時間戳記與服務標籤印出，實現日誌的統一檢視。
+* **執行緒安全與併發保護 (Thread-Safety & Race Condition Prevention)**：  
+  在多 Goroutine 併發拉起與監控子服務的架構下，引入 `sync.Mutex` 互斥鎖保護對執行中子進程狀態 Map 的存取與刪除，保證守護進程在高併發自癒重啟環境下 100% 穩定，免受 Concurrent Map Writes Panic 威脅。
 
 ### B. Nginx 聲明式動態渲染與協定優化
 * **Go Text Template 模板引擎**：  
@@ -71,6 +73,10 @@ graph LR
   - `proxy_read_timeout 86400s;` ── 將連線超時延長至 24 小時，防範 Nginx 自動切斷長連線。
 * **WebSocket 動態協議升級**：  
   利用 Nginx 的 `map` 指令對 `$http_upgrade` 進行映射。當客戶端請求中帶有 `Upgrade: websocket` 標頭時，Nginx 會動態向後端發送 `Connection: upgrade`，實現 HTTP、SSE 與 WS 協定在同一個 Location 路由下的無縫相容。
+* **API 路由重新對應與映射 (Route Rewriting / Sub-path Mapping)**：  
+  支援在同一個伺服器區塊下透過 `extra_paths` 將特定路徑（如 `/convert`）重新對應並精確轉發至後端服務的特定 API 子路徑，提供靈活的 Gateway 路由轉發。
+* **特大傳輸限制優化 (Large Payload Handling)**：  
+  在生成的每個 Location 區塊中，默認配置 `client_max_body_size 50M;`，允許流暢傳輸特大號多媒體檔案（如 video2gif 轉碼所需之大型 MP4 影片），避開 Nginx 默認 1MB 的上傳限制。
 
 ---
 
