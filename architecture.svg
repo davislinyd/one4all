@@ -19,17 +19,12 @@
 
   <!-- White Background -->
   <rect width="900" height="500" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" />
-  
-  <!-- Grid Lines -->
-  <path d="M 0 100 L 900 100 M 0 200 L 900 200 M 0 300 L 900 300 M 0 400 L 900 400 M 100 0 L 100 500 M 200 0 L 200 500 M 300 0 L 300 500 M 400 0 L 400 500 M 500 0 L 500 500 M 600 0 L 600 500 M 700 0 L 700 500 M 800 0 L 800 500" stroke="#f1f5f9" stroke-width="1" />
 
   <!-- Title -->
-  <text x="40" y="45" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="800" fill="#0f172a" letter-spacing="0.5">
+  <text x="40" y="55" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="800" fill="#0f172a" letter-spacing="0.5">
     ONE FOR ALL ── GATEWAY ARCHITECTURE
   </text>
-  <text x="40" y="65" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#64748b">
-    風格一：極簡扁平風 (Minimalist Flat Style)
-  </text>
+
 
   <!-- ==================== LINES & LABELS (WITH BG TO AVOID OVERLAP) ==================== -->
 
