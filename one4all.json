@@ -46,6 +46,19 @@
         "external_port": 9002,
         "path": "/another_app/"
       }
+    },
+    {
+      "name": "internet_proxy_test",
+      "port": 0,
+      "script": "",
+      "cwd": "",
+      "interpreter": "",
+      "args": "",
+      "proxy": {
+        "type": "direct",
+        "external_port": 9010,
+        "proxy_pass": "https://example.com/"
+      }
     }
   ]
 }

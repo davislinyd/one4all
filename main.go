@@ -36,6 +36,7 @@ type Proxy struct {
 	ExternalPort int         `json:"external_port"` // Nginx 對外暴露的 Port
 	Path         string      `json:"path"`          // /video2gif/ 等分流路由
 	ExtraPaths   []ExtraPath `json:"extra_paths"`   // 額外的 Path 對應
+	ProxyPass    string      `json:"proxy_pass"`    // 自訂代理目標 (如 https://example.com/)
 }
 
 type Service struct {
@@ -54,9 +55,10 @@ type Config struct {
 
 // 模板渲染所使用的資料結構
 type LocationConfig struct {
-	Path        string
-	BackendPort int
-	BackendPath string
+	Path          string
+	BackendURL    string
+	HostHeader    string
+	EnableSSLName bool
 }
 
 type ServerConfig struct {
@@ -124,6 +126,11 @@ var activeCommands = make(map[string]*exec.Cmd)
 var shouldRestart = true
 
 func monitorService(s Service) {
+	if s.Script == "" || s.Port == 0 {
+		fmt.Printf("[%s] ℹ️ 純反向代理服務，無需監控本地進程。\n", s.Name)
+		return
+	}
+
 	absCwd := s.Cwd
 	if strings.HasPrefix(s.Cwd, ".") {
 		absCwd = filepath.Join(scriptDir, s.Cwd)
@@ -321,6 +328,22 @@ func stopDaemon() {
 	fmt.Println("主進程仍在運行，請手動確認。")
 }
 
+func extractHost(urlStr string) string {
+	temp := urlStr
+	if strings.HasPrefix(temp, "https://") {
+		temp = strings.TrimPrefix(temp, "https://")
+	} else if strings.HasPrefix(temp, "http://") {
+		temp = strings.TrimPrefix(temp, "http://")
+	}
+	if idx := strings.Index(temp, "/"); idx != -1 {
+		temp = temp[:idx]
+	}
+	if idx := strings.Index(temp, ":"); idx != -1 {
+		temp = temp[:idx]
+	}
+	return temp
+}
+
 func reloadNginx() {
 	fmt.Println("\n=== 正在測試與重載 Nginx ===")
 	config, err := loadConfig()
@@ -356,25 +379,50 @@ func reloadNginx() {
 		extPort := s.Proxy.ExternalPort
 		locs := serverGroups[extPort]
 		
+		// 解析代理目標 URL、主機標頭與 SSL 設定
+		var backendURL string
+		var hostHeader string
+		var enableSSLName bool
+		
+		if s.Proxy.ProxyPass != "" {
+			backendURL = s.Proxy.ProxyPass
+			hostHeader = extractHost(s.Proxy.ProxyPass)
+			if strings.HasPrefix(s.Proxy.ProxyPass, "https://") {
+				enableSSLName = true
+			}
+		} else {
+			backendURL = fmt.Sprintf("http://127.0.0.1:%d/", s.Port)
+			hostHeader = "$host"
+		}
+		
 		if s.Proxy.Type == "direct" {
 			locs = append(locs, LocationConfig{
-				Path:        "/",
-				BackendPort: s.Port,
-				BackendPath: "/",
+				Path:          "/",
+				BackendURL:    backendURL,
+				HostHeader:    hostHeader,
+				EnableSSLName: enableSSLName,
 			})
 		} else if s.Proxy.Type == "path" {
 			// 加入主 path
 			locs = append(locs, LocationConfig{
-				Path:        s.Proxy.Path,
-				BackendPort: s.Port,
-				BackendPath: "/",
+				Path:          s.Proxy.Path,
+				BackendURL:    backendURL,
+				HostHeader:    hostHeader,
+				EnableSSLName: enableSSLName,
 			})
 			// 加入額外的 extra_paths 對應
 			for _, ep := range s.Proxy.ExtraPaths {
+				var epBackendURL string
+				if s.Proxy.ProxyPass != "" {
+					epBackendURL = strings.TrimSuffix(s.Proxy.ProxyPass, "/") + "/" + strings.TrimPrefix(ep.BackendPath, "/")
+				} else {
+					epBackendURL = fmt.Sprintf("http://127.0.0.1:%d%s", s.Port, ep.BackendPath)
+				}
 				locs = append(locs, LocationConfig{
-					Path:        ep.Path,
-					BackendPort: s.Port,
-					BackendPath: ep.BackendPath,
+					Path:          ep.Path,
+					BackendURL:    epBackendURL,
+					HostHeader:    hostHeader,
+					EnableSSLName: enableSSLName,
 				})
 			}
 		}
