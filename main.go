@@ -141,7 +141,9 @@ func monitorService(s Service) {
 
 		args := []string{s.Script}
 		if s.Args != "" {
-			args = append(args, strings.Fields(s.Args)...)
+			// 動態將 {{.Port}} 替換為實際 Port 值，避免設定檔中資訊重複
+			replacedArgs := strings.ReplaceAll(s.Args, "{{.Port}}", strconv.Itoa(s.Port))
+			args = append(args, strings.Fields(replacedArgs)...)
 		}
 
 		cmd := exec.Command(s.Interpreter, args...)

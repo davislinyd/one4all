@@ -9,7 +9,7 @@
       "script": "app.py",
       "cwd": "./services/service1",
       "interpreter": "python3",
-      "args": "--port 8080",
+      "args": "--port {{.Port}}",
       "proxy": {
         "type": "direct",
         "external_port": 443
@@ -21,7 +21,7 @@
       "script": "app.py",
       "cwd": "./services/video2gif",
       "interpreter": "python3",
-      "args": "--port 9003",
+      "args": "--port {{.Port}}",
       "proxy": {
         "type": "path",
         "external_port": 9002,
@@ -40,7 +40,7 @@
       "script": "app.py",
       "cwd": "./services/another_app",
       "interpreter": "python3",
-      "args": "--port 9004",
+      "args": "--port {{.Port}}",
       "proxy": {
         "type": "path",
         "external_port": 9002,
