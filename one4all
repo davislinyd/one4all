@@ -1,233 +1,233 @@
-#!/usr/bin/env bash
-
-# One for All - Service Control CLI
-# 用途：一鍵啟動/停止所有後端 PM2 服務，以及重載 Nginx 反向代理。
-
-# 確保在腳本所在目錄執行，以便正確讀取 one4all.json
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="${SCRIPT_DIR}/one4all.json"
-
-# 自動擴充 PATH，確保能找到 Homebrew 的命令 (如 nginx, pm2)
-export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/sbin:/sbin:/usr/bin:/bin:${PATH}"
-
-
-# 檢查設定檔是否存在
-if [ ! -f "${CONFIG_FILE}" ]; then
-    echo "錯誤: 找不到設定檔 ${CONFIG_FILE}"
-    exit 1
-fi
-
-# 偵測作業系統
-OS_TYPE="$(uname -s)"
-
-# 檢查 PM2 是否安裝
-check_pm2() {
-    if ! command -v pm2 &> /dev/null; then
-        echo "錯誤: 系統未安裝 pm2。請先安裝 Node.js 並執行: npm install -g pm2"
-        exit 1
-    fi
-}
-
-# 檢查 Nginx 並重載
-reload_nginx() {
-    echo "=== 正在測試與重載 Nginx ==="
-    
-    # 偵測 Nginx 指令
-    if command -v nginx &> /dev/null; then
-        NGINX_CMD="nginx"
-    elif [ -f "/opt/homebrew/bin/nginx" ]; then
-        NGINX_CMD="/opt/homebrew/bin/nginx"
-    elif [ -f "/usr/sbin/nginx" ]; then
-        NGINX_CMD="/usr/sbin/nginx"
-    else
-        echo "警告: 找不到 nginx 執行檔，跳過 Nginx 重載。請手動重載 Nginx。"
-        return 1
-    fi
-
-    # 決定目標設定檔寫入路徑
-    local target_nginx_conf=""
-    if [ "${OS_TYPE}" = "Darwin" ]; then
-        if [ -d "/opt/homebrew/etc/nginx/servers" ]; then
-            target_nginx_conf="/opt/homebrew/etc/nginx/servers/one4all.conf"
-        else
-            target_nginx_conf="/usr/local/etc/nginx/servers/one4all.conf"
-        fi
-    else
-        target_nginx_conf="/etc/nginx/sites-available/one4all"
-    fi
-
-    # 動態讀取 one4all.json 中的 nginx.port 並寫入目的地 Nginx 設定檔
-    echo "正在根據 one4all.json 更新 Nginx 設定檔 (寫入至 ${target_nginx_conf})..."
-    local gen_status
-    gen_status=$(python3 -c "
-import json, re, os, sys
-try:
-    with open('${CONFIG_FILE}', 'r') as f:
-        config = json.load(f)
-    port = config.get('nginx', {}).get('port', 9002)
-    
-    template_path = os.path.join('${SCRIPT_DIR}', 'nginx.conf')
-    with open(template_path, 'r') as f:
-        content = f.read()
-        
-    updated = re.sub(r'listen\s+\d+;', f'listen {port};', content)
-    
-    # 若在 Linux 下寫入 /etc/nginx 可能需要權限，捕獲異常
-    with open('${target_nginx_conf}', 'w') as f:
-        f.write(updated)
-    print(f'SUCCESS:已將 Nginx 對外 Port 設定為 {port}')
-except Exception as e:
-    print(f'ERROR:{e}', file=sys.stderr)
-    sys.exit(1)
-" 2>&1)
-
-    if [[ "${gen_status}" == ERROR:* ]]; then
-        echo "錯誤: 無法更新 Nginx 設定檔！"
-        echo "詳細錯誤: ${gen_status}"
-        echo "提示: 如果在 Linux 上運行，請嘗試以 sudo 權限執行此腳本 (例如: sudo ./one4all reload)。"
-        return 1
-    else
-        echo "${gen_status#SUCCESS:}"
-    fi
-
-    # 測試 Nginx 設定 (macOS 不需要 sudo)
-    echo "測試 Nginx 設定檔語法..."
-    if [ "${OS_TYPE}" = "Darwin" ]; then
-        ${NGINX_CMD} -t
-    else
-        sudo ${NGINX_CMD} -t
-    fi
-
-    if [ $? -eq 0 ]; then
-        echo "Nginx 設定語法正確。"
-    else
-        echo "錯誤: Nginx 設定語法測試失敗！請檢查您的 nginx.conf。"
-        return 1
-    fi
-
-    # 執行重載 (macOS 不需要 sudo)
-    echo "正在重載 Nginx 服務..."
-    if [ "${OS_TYPE}" = "Darwin" ]; then
-        ${NGINX_CMD} -s reload
-    else
-        # Linux (Ubuntu/Debian)
-        if command -v systemctl &> /dev/null; then
-            sudo systemctl reload nginx
-        else
-            sudo service nginx reload
-        fi
-    fi
-    
-    if [ $? -eq 0 ]; then
-        echo "Nginx 重載成功！"
-    else
-        echo "錯誤: Nginx 重載失敗，請檢查權限或 Nginx 狀態。"
-    fi
-}
-
-# 執行服務操作 (start/stop/restart)
-manage_services() {
-    local action=$1
-    check_pm2
-    
-    # 使用 python3 解析 json 設定檔中的 services
-    # 輸出格式為: name|cwd|script|interpreter|args，每一行代表一個服務
-    local services_raw
-    services_raw=$(python3 -c "
+#!/usr/bin/env python3
+import os
+import sys
 import json
-try:
-    with open('${CONFIG_FILE}', 'r') as f:
-        data = json.load(f)
-        for s in data.get('services', []):
-            print(f\"{s['name']}|{s.get('cwd', '.')}|{s['script']}|{s.get('interpreter', 'python3')}|{s.get('args', '')}\")
-except Exception as e:
-    import sys
-    print(f'ERROR:{e}', file=sys.stderr)
-" 2>/dev/null)
+import re
+import shutil
+import platform
+import subprocess
 
-    if [[ "$services_raw" == ERROR:* ]] || [ -z "$services_raw" ]; then
-        echo "錯誤: 解析 one4all.json 失敗，請確認其 JSON 語法是否正確。"
-        exit 1
-    fi
+# 取得腳本所在目錄，確保正確讀取設定檔與範本
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.path.join(SCRIPT_DIR, "one4all.json")
+OS_TYPE = platform.system()
 
-    echo "=== 執行後端服務操作: ${action} ==="
+def load_config():
+    """載入 one4all.json 設定檔"""
+    if not os.path.exists(CONFIG_FILE):
+        print(f"錯誤: 找不到設定檔 {CONFIG_FILE}", file=sys.stderr)
+        sys.exit(1)
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"錯誤: 解析 one4all.json 失敗。{e}", file=sys.stderr)
+        sys.exit(1)
 
-    # 將 IFS 設為換行符，逐行處理服務
-    local old_ifs=$IFS
-    IFS=$'\n'
-    for line in $services_raw; do
-        IFS='|' read -r name cwd script interpreter args <<< "$line"
+def check_pm2():
+    """確認 PM2 是否已安裝"""
+    # 擴展 PATH 以便在 macOS/Linux 上找到 Homebrew 等目錄下的命令
+    env = os.environ.copy()
+    extra_paths = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/sbin", "/sbin"]
+    env["PATH"] = os.path.pathsep.join(extra_paths) + os.path.pathsep + env.get("PATH", "")
+    
+    pm2_path = shutil.which("pm2", path=env["PATH"])
+    if not pm2_path:
+        print("錯誤: 系統未安裝 pm2。請先安裝 Node.js 並執行: npm install -g pm2", file=sys.stderr)
+        sys.exit(1)
+    return pm2_path, env
+
+def run_command(args, cwd=None, env=None, check=False):
+    """封裝 subprocess 呼叫"""
+    try:
+        result = subprocess.run(
+            args, cwd=cwd, env=env, text=True, capture_output=True
+        )
+        if check and result.returncode != 0:
+            print(f"指令執行失敗: {' '.join(args)}", file=sys.stderr)
+            if result.stderr:
+                print(result.stderr, file=sys.stderr)
+            sys.exit(result.returncode)
+        return result
+    except Exception as e:
+        print(f"執行指令時發生異常: {e}", file=sys.stderr)
+        sys.exit(1)
+
+def manage_services(action):
+    """執行後端服務管理 (start/stop/restart)"""
+    pm2_path, env = check_pm2()
+    config = load_config()
+    services = config.get("services", [])
+    
+    if not services:
+        print("提示: 設定檔中無定義任何服務。")
+        return
+
+    print(f"\n=== 執行後端服務操作: {action} ===")
+    for s in services:
+        name = s.get("name")
+        cwd = s.get("cwd", ".")
+        script = s.get("script")
+        interpreter = s.get("interpreter", "python3")
+        args_str = s.get("args", "")
         
-        # 轉換相對路徑為絕對路徑
-        local abs_cwd="${cwd}"
-        if [[ "${cwd}" == .* ]]; then
-            abs_cwd="${SCRIPT_DIR}/${cwd#./}"
-        fi
+        # 處理相對路徑
+        abs_cwd = cwd
+        if cwd.startswith("."):
+            abs_cwd = os.path.normpath(os.path.join(SCRIPT_DIR, cwd))
 
-        case "${action}" in
-            start)
-                echo "正在啟動服務: ${name} (在 ${abs_cwd})"
-                if [ ! -d "${abs_cwd}" ]; then
-                    echo "警告: 目錄 ${abs_cwd} 不存在，跳過此服務。"
+        if action == "start":
+            print(f"正在啟動服務: {name} (在 {abs_cwd})...")
+            if not os.path.isdir(abs_cwd):
+                print(f" 警告: 目錄 {abs_cwd} 不存在，跳過此服務。")
+                continue
+            
+            cmd = [pm2_path, "start", script, "--name", name, "--interpreter", interpreter]
+            if args_str:
+                cmd += ["--"] + args_str.split()
+                
+            run_command(cmd, cwd=abs_cwd, env=env)
+            
+        elif action == "stop":
+            print(f"正在停止服務: {name}...")
+            # 停止服務，如果本來就沒啟動則忽略錯誤
+            run_command([pm2_path, "stop", name], env=env)
+            
+        elif action == "restart":
+            print(f"正在重啟服務: {name}...")
+            # 檢查服務是否已在 PM2 列表中
+            desc = run_command([pm2_path, "describe", name], env=env)
+            if desc.returncode == 0:
+                run_command([pm2_path, "restart", name], env=env)
+            else:
+                # 若不存在則直接 start
+                if not os.path.isdir(abs_cwd):
+                    print(f" 警告: 目錄 {abs_cwd} 不存在，跳過此服務。")
                     continue
-                fi
-                # 切換到該目錄執行，確保 PM2 能正確載入其相對資源
-                (cd "${abs_cwd}" && pm2 start "${script}" --name "${name}" --interpreter "${interpreter}" -- ${args})
-                ;;
-            stop)
-                echo "正在停止服務: ${name}"
-                pm2 stop "${name}" 2>/dev/null || echo "服務 ${name} 未在運行中。"
-                ;;
-            restart)
-                echo "正在重啟服務: ${name}"
-                if pm2 describe "${name}" &> /dev/null; then
-                    pm2 restart "${name}"
-                else
-                    if [ ! -d "${abs_cwd}" ]; then
-                        echo "警告: 目錄 ${abs_cwd} 不存在，跳過此服務。"
-                        continue
-                    fi
-                    (cd "${abs_cwd}" && pm2 start "${script}" --name "${name}" --interpreter "${interpreter}" -- ${args})
-                fi
-                ;;
-        esac
-    done
-    IFS=$old_ifs
-}
+                cmd = [pm2_path, "start", script, "--name", name, "--interpreter", interpreter]
+                if args_str:
+                    cmd += ["--"] + args_str.split()
+                run_command(cmd, cwd=abs_cwd, env=env)
 
-# 指令幫助說明
-show_usage() {
-    echo "使用方式: $0 {start|stop|restart|reload|status}"
-    echo "  start   : 啟動 one4all.json 中定義的所有後端服務"
-    echo "  stop    : 停止所有後端服務"
-    echo "  restart : 重啟所有後端服務"
-    echo "  reload  : 重啟所有後端服務並重載 Nginx"
-    echo "  status  : 查看所有後端服務運行狀態 (PM2 list)"
-}
+def reload_nginx():
+    """動態生成與重載 Nginx 設定"""
+    print("\n=== 正在測試與重載 Nginx ===")
+    config = load_config()
+    nginx_port = config.get("nginx", {}).get("port", 9002)
 
-# 主控制邏輯
-case "$1" in
-    start)
-        manage_services "start"
-        ;;
-    stop)
-        manage_services "stop"
-        ;;
-    restart)
-        manage_services "restart"
-        ;;
-    reload)
-        manage_services "restart"
-        reload_nginx
-        ;;
-    status)
-        check_pm2
-        pm2 list
-        ;;
-    *)
-        show_usage
-        exit 1
-        ;;
-esac
+    # 1. 偵測 nginx 執行路徑
+    env = os.environ.copy()
+    extra_paths = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/sbin", "/sbin"]
+    env["PATH"] = os.path.pathsep.join(extra_paths) + os.path.pathsep + env.get("PATH", "")
+    
+    nginx_cmd = shutil.which("nginx", path=env["PATH"])
+    if not nginx_cmd:
+        # 常見預設路徑備用
+        for p in ["/opt/homebrew/bin/nginx", "/usr/local/bin/nginx", "/usr/sbin/nginx"]:
+            if os.path.exists(p):
+                nginx_cmd = p
+                break
+                
+    if not nginx_cmd:
+        print("警告: 找不到 nginx 執行檔，跳過 Nginx 重載。請手動重載 Nginx。", file=sys.stderr)
+        return
 
-exit 0
+    # 2. 決定目標設定檔寫入路徑
+    if OS_TYPE == "Darwin":
+        if os.path.isdir("/opt/homebrew/etc/nginx/servers"):
+            target_nginx_conf = "/opt/homebrew/etc/nginx/servers/one4all.conf"
+        else:
+            target_nginx_conf = "/usr/local/etc/nginx/servers/one4all.conf"
+    else:
+        target_nginx_conf = "/etc/nginx/sites-available/one4all"
+
+    # 3. 讀取範本並動態修改 Port
+    template_path = os.path.join(SCRIPT_DIR, "nginx.conf")
+    if not os.path.exists(template_path):
+        print(f"錯誤: 找不到 Nginx 範本檔案 {template_path}", file=sys.stderr)
+        return
+
+    print(f"正在將 Nginx 對外 Port 設定為 {nginx_port} (寫入至 {target_nginx_conf})...")
+    try:
+        with open(template_path, "r", encoding="utf-8") as f:
+            nginx_content = f.read()
+            
+        # 替換 listen 埠
+        updated_content = re.sub(r"listen\s+\d+;", f"listen {nginx_port};", nginx_content)
+        
+        with open(target_nginx_conf, "w", encoding="utf-8") as f:
+            f.write(updated_content)
+    except PermissionError:
+        print("錯誤: 權限不足，無法寫入 Nginx 設定檔！", file=sys.stderr)
+        print("提示: 請嘗試以管理員權限執行 (例如: sudo ./one4all reload)。", file=sys.stderr)
+        return
+    except Exception as e:
+        print(f"錯誤: 生成 Nginx 設定檔失敗。{e}", file=sys.stderr)
+        return
+
+    # 4. 測試 Nginx 設定檔
+    print("測試 Nginx 設定檔語法...")
+    test_cmd = [nginx_cmd, "-t"]
+    if OS_TYPE != "Darwin":
+        test_cmd = ["sudo"] + test_cmd
+        
+    test_res = run_command(test_cmd, env=env)
+    if test_res.returncode == 0:
+        print("Nginx 設定語法正確。")
+    else:
+        print("錯誤: Nginx 設定語法測試失敗！", file=sys.stderr)
+        if test_res.stderr:
+            print(test_res.stderr, file=sys.stderr)
+        return
+
+    # 5. 重載 Nginx
+    print("正在重載 Nginx 服務...")
+    if OS_TYPE == "Darwin":
+        reload_cmd = [nginx_cmd, "-s", "reload"]
+    else:
+        if shutil.which("systemctl"):
+            reload_cmd = ["sudo", "systemctl", "reload", "nginx"]
+        else:
+            reload_cmd = ["sudo", "service", "nginx", "reload"]
+            
+    reload_res = run_command(reload_cmd, env=env)
+    if reload_res.returncode == 0:
+        print("Nginx 重載成功！")
+    else:
+        print("錯誤: Nginx 重載失敗。", file=sys.stderr)
+        if reload_res.stderr:
+            print(reload_res.stderr, file=sys.stderr)
+
+def show_usage():
+    print(f"使用方式: {sys.argv[0]} {{start|stop|restart|reload|status}}")
+    print("  start   : 啟動 one4all.json 中定義的所有後端服務")
+    print("  stop    : 停止所有後端服務")
+    print("  restart : 重啟所有後端服務")
+    print("  reload  : 重啟所有後端服務並重載 Nginx")
+    print("  status  : 查看所有後端服務運行狀態 (PM2 list)")
+
+def main():
+    if len(sys.argv) < 2:
+        show_usage()
+        sys.exit(1)
+        
+    action = sys.argv[1]
+    
+    if action == "start":
+        manage_services("start")
+    elif action == "stop":
+        manage_services("stop")
+    elif action == "restart":
+        manage_services("restart")
+    elif action == "reload":
+        manage_services("restart")
+        reload_nginx()
+    elif action == "status":
+        pm2_path, env = check_pm2()
+        subprocess.run([pm2_path, "list"], env=env)
+    else:
+        show_usage()
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
