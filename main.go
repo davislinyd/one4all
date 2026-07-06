@@ -331,8 +331,8 @@ func reloadNginx() {
 
 	fmt.Printf("正在更新 Nginx 對外 Port 至 %d (寫入至 %s)...\n", config.Nginx.Port, targetNginxConf)
 
-	re := regexp.MustCompile(`listen\s+\d+;`)
-	updatedConf := re.ReplaceAllString(nginxTemplate, fmt.Sprintf("listen %d;", config.Nginx.Port))
+	re := regexp.MustCompile(`listen\s+\d+;\s*#\s*DYNAMIC_PORT`)
+	updatedConf := re.ReplaceAllString(nginxTemplate, fmt.Sprintf("listen %d; # DYNAMIC_PORT", config.Nginx.Port))
 
 	err = ioutil.WriteFile(targetNginxConf, []byte(updatedConf), 0644)
 	if err != nil {
