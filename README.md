@@ -3,7 +3,7 @@
 此專案為多個 Python/SSE/WebSocket MCP (Model Context Protocol) 服務的本地開發與部署閘道器 (Gateway)。
 它對外提供多 Port 暴露與聲明式路由分流，並利用 Nginx 將流量轉發至內部運行於不同 Port 的 Python 服務。
 
-此專案已**全面移除 PM2 與 Node.js 的依賴**，改由原生編譯的 Go 二進位檔直接擔任輕量級進程守護器（Supervisor）。
+此專案由原生編譯的 Go 二進位檔直接擔任輕量級進程守護器（Supervisor）。
 
 ---
 
@@ -52,7 +52,7 @@ graph LR
 
 ### A. Go 守護進程核心機制
 * **進程生命週期監控 (Goroutines Supervisor)**：  
-  當啟動 `run`/`start` 時，Go 主進程會為 [one4all.json](file:///Users/lindav/git/one4all/one4all.json) 中配置的每個服務拉起一個獨立的 Goroutine。透過 `os/exec` 監控子進程狀態，若子進程因異常或崩潰退出（Exit Code != 0），會在 **2 秒後自動重啟**。
+  當啟動 `run`/`start` 時，Go 主進程會為 [one4all.json](file:///Users/lindav/git/one4all/one4all.json) 中配置的每個服務拉起一個獨立的 Goroutine。透過 `os/exec` 監控子進程狀態，若子進程因異常或退出（Exit Code != 0），會在 **2 秒後自動重啟**。
 * **Unix 信號熱重載 (SIGHUP Hot Reload)**：  
   主進程持續監聽 `syscall.SIGHUP` 訊號。當執行 `./one4all reload` 時，CLI 會向運行中的守護進程發送 `SIGHUP`。主進程接收到後，會**在不重啟自身的前提下**，停止目前所有運行的 Python 子進程、重新解析 JSON 設定檔，並拉起全新配置的子服務。
 * **優雅終止與孤兒進程預防 (SIGINT / SIGTERM Sync)**：  
@@ -119,7 +119,7 @@ go build -o one4all main.go
 | 指令 | 執行模式 | 核心行為 | 背景訊號/機制 |
 | :--- | :--- | :--- | :--- |
 | **`./one4all run`** | 前台 (Foreground) | 啟動守護進程並管理所有服務。即時將所有子服務日誌彙總輸出至螢幕。 | 常駐前台，接收 `Ctrl+C` 時發送 `SIGTERM` 關閉所有子服務。 |
-| **`./one4all start`** | 背景 (Daemon) | 在背景啟動守護進程。所有子服務與守護進程日誌將非同步寫入至 `one4all_daemon.log`。 | 調用自身執行 `run`，並重定向輸出，產生 `one4all.pid` 鎖定檔。 |
+| **`./one4all start`** | 背景 (Daemon) | 在背景啟動守護進程。所有子服務與守護進程日誌將非同步寫入至 `one4all_daemon.log`。 | 定向輸出，產生 `one4all.pid` 鎖定檔。 |
 | **`./one4all status`** | 查詢 | 檢測守護進程是否存活，並印出當前守護的主進程 PID、所管理之子服務清單及其代理拓撲。 | 讀取 PID 檔，向該 PID 發送 `0` 號訊號檢測進程生命狀態。 |
 | **`./one4all reload`** | 熱重載 | 1. 讀取 JSON 並渲染生成 Nginx 設定檔。<br>2. 執行 `nginx -t` 語法測試與 `nginx -s reload`。<br>3. 通知運行中的 Go 守護進程重新載入配置並重啟所有 Python 子服務。 | 向 `one4all.pid` 中的進程發送 `SIGHUP` 訊號。 |
 | **`./one4all stop`** | 停止 | 終止背景運行的 Go 守護進程，並確保其安全、優雅地關閉所有由其管理的子服務。 | 向 `one4all.pid` 傳送 `SIGTERM` 訊號，並循環等待其安全退場。 |
@@ -199,4 +199,4 @@ Go 會自動將配置渲染並重載，完成部署！
 * **解法**：
   1. 執行 `./one4all status` 確認該 Python 服務目前是否處於啟動狀態。
   2. 檢查 `one4all_daemon.log`，確認該 Python 服務啟動時是否因代碼語法錯誤或缺少依賴套件而崩潰。
-  3. 驗證服務的 `port` 參數是否與 Python 啟動的監聽 Port 一致。
+  3. 驗證服務의 `port` 參數是否與 Python 啟動的監聽 Port 一致。
