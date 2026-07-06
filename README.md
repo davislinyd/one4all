@@ -9,21 +9,21 @@
 
 ```mermaid
 graph TD
-    Client[Client / Browser / MCP Client] -- HTTP / SSE / WS (Port: 9005) --> Nginx[Nginx Gateway]
+    Client["Client / Browser / MCP Client"] -- "HTTP / SSE / WS (Port: 9005)" --> Nginx["Nginx Gateway"]
     
-    Nginx -- Path: /video2gif/* --> S1[video2gif Python App (Port: 9003)]
-    Nginx -- Path: /another_app/* --> S2[another_app Python App (Port: 9004)]
-    Nginx -- Path: /convert --> S1
+    Nginx -- "Path: /video2gif/*" --> S1["video2gif Python App (Port: 9003)"]
+    Nginx -- "Path: /another_app/*" --> S2["another_app Python App (Port: 9004)"]
+    Nginx -- "Path: /convert" --> S1
     
-    subgraph Go Supervisor [one4all Go CLI / Daemon]
-        JSON[one4all.json Config] --> Supervisor[Go Supervisor Process]
-        Supervisor -- Monitor & Auto-restart --> S1
-        Supervisor -- Monitor & Auto-restart --> S2
+    subgraph Go Supervisor ["one4all Go CLI / Daemon"]
+        JSON["one4all.json Config"] --> Supervisor["Go Supervisor Process"]
+        Supervisor -- "Monitor & Auto-restart" --> S1
+        Supervisor -- "Monitor & Auto-restart" --> S2
     end
     
-    Developer[Developer / CLI User] -- SIGHUP / SIGTERM / CLI Commands --> Supervisor
-    Developer -- Configure Nginx Port --> JSON
-    Supervisor -- Write & Reload Config --> Nginx
+    Developer["Developer / CLI User"] -- "SIGHUP / SIGTERM / CLI Commands" --> Supervisor
+    Developer -- "Configure Nginx Port" --> JSON
+    Supervisor -- "Write & Reload Config" --> Nginx
 ```
 
 ---
