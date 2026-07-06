@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 500" width="100%" height="100%">
+  <defs>
+    <!-- Soft Gradients for Card Backgrounds -->
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#eff6ff" />
+      <stop offset="100%" stop-color="#dbeafe" />
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ecfdf5" />
+      <stop offset="100%" stop-color="#d1fae5" />
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fffbeb" />
+      <stop offset="100%" stop-color="#fef3c7" />
+    </linearGradient>
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ecfeff" />
+      <stop offset="100%" stop-color="#cffafe" />
+    </linearGradient>
+
+    <!-- Colored Borders -->
+    <linearGradient id="borderBlue" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#60a5fa" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+    <linearGradient id="borderGreen" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+    <linearGradient id="borderOrange" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+    <linearGradient id="borderCyan" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#22d3ee" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+
+    <!-- Shadow -->
+    <filter id="soft-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0f172a" flood-opacity="0.05" />
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.03" />
+    </filter>
+
+    <!-- Markers -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#94a3b8" />
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#10b981" />
+    </marker>
+    <marker id="arrow-cyan" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#06b6d4" />
+    </marker>
+  </defs>
+
+  <!-- Clean White Canvas -->
+  <rect width="900" height="500" rx="20" fill="#ffffff" stroke="#f1f5f9" stroke-width="1.5" />
+  
+  <!-- Subtle Blueprint Tech Circles -->
+  <circle cx="450" cy="250" r="380" fill="none" stroke="#f8fafc" stroke-width="2" />
+  <circle cx="450" cy="250" r="280" fill="none" stroke="#f8fafc" stroke-width="1.5" stroke-dasharray="8 8" />
+
+  <!-- Title -->
+  <text x="50" y="45" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="900" fill="#0f172a" letter-spacing="-0.5">
+    One for All Gateway
+  </text>
+  <text x="50" y="65" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#64748b" font-weight="500">
+    風格二：漸變立體風 (Modern Gradient Style)
+  </text>
+
+  <!-- ==================== CONNECTIONS (WITH SHIELD OVERLAPS) ==================== -->
+
+  <!-- Client -> Nginx -->
+  <path d="M 190 230 L 290 230" fill="none" stroke="#cbd5e1" stroke-width="2" marker-end="url(#arrow)" />
+  <rect x="205" y="217" width="70" height="20" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+  <text x="240" y="231" font-family="monospace" font-size="9" font-weight="bold" fill="#64748b" text-anchor="middle">Port 9005</text>
+  
+  <!-- Nginx -> video2gif -->
+  <path d="M 480 210 C 530 210, 520 125, 570 125" fill="none" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-green)" />
+  <rect x="490" y="148" width="70" height="20" rx="6" fill="#ecfdf5" stroke="#a7f3d0" stroke-width="1" />
+  <text x="525" y="161" font-family="monospace" font-size="9" font-weight="bold" fill="#047857" text-anchor="middle">/video2gif/</text>
+
+  <!-- Nginx -> another_app -->
+  <path d="M 480 250 C 530 250, 520 335, 570 335" fill="none" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-green)" />
+  <rect x="490" y="285" width="70" height="20" rx="6" fill="#ecfdf5" stroke="#a7f3d0" stroke-width="1" />
+  <text x="525" y="298" font-family="monospace" font-size="9" font-weight="bold" fill="#047857" text-anchor="middle">/another_app/</text>
+
+  <!-- Go Supervisor -> Python Apps -->
+  <path d="M 480 435 L 790 435 L 790 145 L 760 145" fill="none" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arrow-cyan)" />
+  <path d="M 790 355 L 760 355" fill="none" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arrow-cyan)" />
+  <rect x="750" y="260" width="80" height="24" rx="6" fill="#ecfeff" stroke="#cffafe" stroke-width="1" />
+  <text x="790" y="275" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="800" fill="#0891b2" text-anchor="middle">Health Guard</text>
+
+  <!-- Go Supervisor -> Nginx -->
+  <path d="M 385 395 L 385 300" fill="none" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arrow-cyan)" />
+  <rect x="330" y="338" width="110" height="20" rx="6" fill="#ecfeff" stroke="#cffafe" stroke-width="1" />
+  <text x="385" y="351" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="800" fill="#0891b2" text-anchor="middle">Config &amp; reload</text>
+
+  <!-- ==================== GRADIENT CARDS ==================== -->
+
+  <!-- Card 1: Client -->
+  <g filter="url(#soft-shadow)">
+    <rect x="40" y="180" width="150" height="100" rx="14" fill="url(#blueGrad)" stroke="url(#borderBlue)" stroke-width="1.5" />
+    <text x="115" y="218" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="800" fill="#1e3a8a" text-anchor="middle">Client App</text>
+    <text x="115" y="240" font-family="monospace" font-size="10" font-weight="bold" fill="#2563eb" text-anchor="middle">HTTP / SSE / WS</text>
+    <text x="115" y="258" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#64748b" text-anchor="middle">Browser / API Client</text>
+  </g>
+
+  <!-- Card 2: Nginx Gateway -->
+  <g filter="url(#soft-shadow)">
+    <rect x="290" y="180" width="190" height="100" rx="14" fill="url(#greenGrad)" stroke="url(#borderGreen)" stroke-width="1.5" />
+    <text x="385" y="218" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="800" fill="#064e3b" text-anchor="middle">Nginx Gateway</text>
+    <text x="385" y="240" font-family="monospace" font-size="10" font-weight="bold" fill="#059669" text-anchor="middle">Proxy Engine</text>
+    <text x="385" y="258" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#64748b" text-anchor="middle">Port 9005 (Dynamic)</text>
+  </g>
+
+  <!-- Card 3: video2gif Python App -->
+  <g filter="url(#soft-shadow)">
+    <rect x="570" y="80" width="190" height="90" rx="14" fill="url(#orangeGrad)" stroke="url(#borderOrange)" stroke-width="1.5" />
+    <text x="665" y="118" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="800" fill="#78350f" text-anchor="middle">video2gif App</text>
+    <text x="665" y="138" font-family="monospace" font-size="10" font-weight="bold" fill="#d97706" text-anchor="middle">Port 9003</text>
+    <text x="665" y="154" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#64748b" text-anchor="middle">HTTP &amp; SSE Service</text>
+  </g>
+
+  <!-- Card 4: another_app Python App -->
+  <g filter="url(#soft-shadow)">
+    <rect x="570" y="290" width="190" height="90" rx="14" fill="url(#orangeGrad)" stroke="url(#borderOrange)" stroke-width="1.5" />
+    <text x="665" y="328" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="800" fill="#78350f" text-anchor="middle">another_app App</text>
+    <text x="665" y="348" font-family="monospace" font-size="10" font-weight="bold" fill="#d97706" text-anchor="middle">Port 9004</text>
+    <text x="665" y="364" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#64748b" text-anchor="middle">HTTP &amp; WS Service</text>
+  </g>
+
+  <!-- Card 5: Go Supervisor -->
+  <g filter="url(#soft-shadow)">
+    <rect x="290" y="395" width="190" height="80" rx="14" fill="url(#cyanGrad)" stroke="url(#borderCyan)" stroke-width="1.5" />
+    <text x="385" y="430" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="800" fill="#083344" text-anchor="middle">Go Supervisor</text>
+    <text x="385" y="450" font-family="monospace" font-size="10" font-weight="bold" fill="#0891b2" text-anchor="middle">one4all CLI (Daemon)</text>
+  </g>
+</svg>
