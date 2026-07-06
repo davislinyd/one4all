@@ -7,6 +7,8 @@
 
 ## 系統架構與流程圖
 
+![One for All 系統架構圖](architecture.svg)
+
 ```mermaid
 graph TD
     Client["Client / Browser / MCP Client"] -- "HTTP / SSE / WS (Port: 9005)" --> Nginx["Nginx Gateway"]
