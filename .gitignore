@@ -18,3 +18,7 @@ __pycache__/
 .venv/
 venv/
 env/
+
+# Go Binary
+one4all
+
