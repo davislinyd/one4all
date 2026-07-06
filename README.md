@@ -5,7 +5,29 @@
 
 此專案已**全面移除 PM2 與 Node.js 的依賴**，改由原生編譯的 Go 二進位檔直接擔任輕量級進程守護器。
 
+## 系統架構與流程圖
+
+```mermaid
+graph TD
+    Client[Client / Browser / MCP Client] -- HTTP / SSE / WS (Port: 9005) --> Nginx[Nginx Gateway]
+    
+    Nginx -- Path: /video2gif/* --> S1[video2gif Python App (Port: 9003)]
+    Nginx -- Path: /another_app/* --> S2[another_app Python App (Port: 9004)]
+    Nginx -- Path: /convert --> S1
+    
+    subgraph Go Supervisor [one4all Go CLI / Daemon]
+        JSON[one4all.json Config] --> Supervisor[Go Supervisor Process]
+        Supervisor -- Monitor & Auto-restart --> S1
+        Supervisor -- Monitor & Auto-restart --> S2
+    end
+    
+    Developer[Developer / CLI User] -- SIGHUP / SIGTERM / CLI Commands --> Supervisor
+    Developer -- Configure Nginx Port --> JSON
+    Supervisor -- Write & Reload Config --> Nginx
+```
+
 ---
+
 
 ## 1. 支援的傳輸協定
 
