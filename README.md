@@ -9,7 +9,7 @@
 
 ## 系統架構與流程圖
 
-![One for All 系統架構圖](architecture.svg?v=4)
+![One for All 系統架構圖](https://raw.githubusercontent.com/davislinyd/one4all/main/architecture.svg?v=4)
 
 ```mermaid
 graph LR
