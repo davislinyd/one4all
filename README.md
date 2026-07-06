@@ -17,6 +17,7 @@ graph LR
     classDef nginx fill:#f8fafc,stroke:#10b981,stroke-width:2px;
     classDef backend fill:#f8fafc,stroke:#f59e0b,stroke-width:2px;
     classDef supervisor fill:#f8fafc,stroke:#06b6d4,stroke-width:2px,stroke-dasharray: 3 3;
+    classDef internet fill:#f8fafc,stroke:#8b5cf6,stroke-width:2px;
 
     %% 1. 流量入口
     Client["Client / Browser"]:::client
@@ -28,17 +29,20 @@ graph LR
         Supervisor -. "1. 動態配置與重載" .-> Nginx
     end
 
-    %% 3. 後端服務層
+    %% 3. 後端服務與外網層
     subgraph Backends ["Python 後端服務群"]
-        S1["service1 (Port: 8080)"]:::backend
+        S1["service1 (Port: 8085)"]:::backend
         S2["video2gif (Port: 9003)"]:::backend
         S3["another_app (Port: 9004)"]:::backend
     end
+    
+    Internet["Internet Website (e.g. example.com)"]:::internet
 
     %% 流量路由關係
     Client -- "Port 443" --> Nginx -- "直連代理 /" --> S1
     Client -- "Port 9002" --> Nginx -- "分流 /video2gif/" --> S2
     Nginx -- "分流 /another_app/" --> S3
+    Client -- "Port 9010" --> Nginx -- "外網反向代理" --> Internet
 
     %% 守護與監控關係
     Supervisor -. "2. 進程守護與自動重啟" .-> Backends
