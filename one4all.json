@@ -5,7 +5,7 @@
   "services": [
     {
       "name": "service1",
-      "port": 8080,
+      "port": 8085,
       "script": "app.py",
       "cwd": "./services/service1",
       "interpreter": "python3",

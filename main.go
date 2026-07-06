@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"text/template"
 	"time"
@@ -118,6 +119,7 @@ func logReader(serviceName string, reader io.Reader) {
 	}
 }
 
+var activeCmdMu sync.Mutex
 var activeCommands = make(map[string]*exec.Cmd)
 var shouldRestart = true
 
@@ -168,13 +170,18 @@ func monitorService(s Service) {
 			continue
 		}
 
+		activeCmdMu.Lock()
 		activeCommands[s.Name] = cmd
+		activeCmdMu.Unlock()
 
 		go logReader(s.Name, stdout)
 		go logReader(s.Name, stderr)
 
 		err = cmd.Wait()
+		
+		activeCmdMu.Lock()
 		delete(activeCommands, s.Name)
+		activeCmdMu.Unlock()
 
 		if !shouldRestart {
 			fmt.Printf("[%s] 🛑 服務已停止。\n", s.Name)
@@ -189,19 +196,26 @@ func monitorService(s Service) {
 func stopAllActiveServices() {
 	shouldRestart = false
 	fmt.Println("\n正在終止所有子服務進程...")
+	
+	activeCmdMu.Lock()
 	for name, cmd := range activeCommands {
 		if cmd.Process != nil {
 			fmt.Printf("正在終止服務: %s (PID: %d)...\n", name, cmd.Process.Pid)
 			cmd.Process.Signal(syscall.SIGTERM)
 		}
 	}
+	activeCmdMu.Unlock()
+	
 	time.Sleep(1 * time.Second)
+	
+	activeCmdMu.Lock()
 	for name, cmd := range activeCommands {
 		if cmd.Process != nil {
 			cmd.Process.Kill()
 			fmt.Printf("已強制結束服務: %s\n", name)
 		}
 	}
+	activeCmdMu.Unlock()
 }
 
 func startDaemon() {
