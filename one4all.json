@@ -1,6 +1,5 @@
 {
   "nginx": {
-    "port": 9002,
     "config_name": "one4all.conf"
   },
   "services": [
@@ -10,7 +9,11 @@
       "script": "app.py",
       "cwd": "./services/service1",
       "interpreter": "python3",
-      "args": "--port 8080"
+      "args": "--port 8080",
+      "proxy": {
+        "type": "direct",
+        "external_port": 443
+      }
     },
     {
       "name": "video2gif",
@@ -18,7 +21,18 @@
       "script": "app.py",
       "cwd": "./services/video2gif",
       "interpreter": "python3",
-      "args": "--port 9003"
+      "args": "--port 9003",
+      "proxy": {
+        "type": "path",
+        "external_port": 9002,
+        "path": "/video2gif/",
+        "extra_paths": [
+          {
+            "path": "/convert",
+            "backend_path": "/convert"
+          }
+        ]
+      }
     },
     {
       "name": "another_app",
@@ -26,7 +40,12 @@
       "script": "app.py",
       "cwd": "./services/another_app",
       "interpreter": "python3",
-      "args": "--port 9004"
+      "args": "--port 9004",
+      "proxy": {
+        "type": "path",
+        "external_port": 9002,
+        "path": "/another_app/"
+      }
     }
   ]
 }

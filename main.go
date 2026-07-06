@@ -1,7 +1,8 @@
 package main
 
 import (
-	"bufio"
+	"bytes"
+	bufio "bufio"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -11,17 +12,30 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"regexp"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
+	"text/template"
 	"time"
 )
 
-// 💡 將 nginx.conf 範本直接編譯進二進位檔
-//go:embed nginx.conf
+// 💡 透過 go:embed 將 nginx.tmpl 範本編譯進二進位檔
+//go:embed nginx.tmpl
 var nginxTemplate string
+
+type ExtraPath struct {
+	Path        string `json:"path"`
+	BackendPath string `json:"backend_path"`
+}
+
+type Proxy struct {
+	Type         string      `json:"type"`          // "direct" 或 "path"
+	ExternalPort int         `json:"external_port"` // Nginx 對外暴露的 Port
+	Path         string      `json:"path"`          // /video2gif/ 等分流路由
+	ExtraPaths   []ExtraPath `json:"extra_paths"`   // 額外的 Path 對應
+}
 
 type Service struct {
 	Name        string `json:"name"`
@@ -30,14 +44,23 @@ type Service struct {
 	Cwd         string `json:"cwd"`
 	Interpreter string `json:"interpreter"`
 	Args        string `json:"args"`
+	Proxy       *Proxy `json:"proxy"` // 支援為 nil 的代理選項
 }
 
 type Config struct {
-	Nginx struct {
-		Port       int    `json:"port"`
-		ConfigName string `json:"config_name"`
-	} `json:"nginx"`
 	Services []Service `json:"services"`
+}
+
+// 模板渲染所使用的資料結構
+type LocationConfig struct {
+	Path        string
+	BackendPort int
+	BackendPath string
+}
+
+type ServerConfig struct {
+	Port      int
+	Locations []LocationConfig
 }
 
 var scriptDir string
@@ -87,7 +110,6 @@ func findExecutable(name string) (string, error) {
 	return "", fmt.Errorf("找不到執行檔: %s", name)
 }
 
-// 讀取日誌並加上服務前綴輸出
 func logReader(serviceName string, reader io.Reader) {
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
@@ -96,11 +118,9 @@ func logReader(serviceName string, reader io.Reader) {
 	}
 }
 
-// 保存目前運行的子進程
 var activeCommands = make(map[string]*exec.Cmd)
 var shouldRestart = true
 
-// 啟動與監控單一服務
 func monitorService(s Service) {
 	absCwd := s.Cwd
 	if strings.HasPrefix(s.Cwd, ".") {
@@ -119,7 +139,6 @@ func monitorService(s Service) {
 			continue
 		}
 
-		// 解析啟動參數
 		args := []string{s.Script}
 		if s.Args != "" {
 			args = append(args, strings.Fields(s.Args)...)
@@ -128,7 +147,6 @@ func monitorService(s Service) {
 		cmd := exec.Command(s.Interpreter, args...)
 		cmd.Dir = absCwd
 
-		// 擷取輸出
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
 			fmt.Printf("[%s] ❌ 無法建立 stdout 管道: %v\n", s.Name, err)
@@ -148,14 +166,11 @@ func monitorService(s Service) {
 			continue
 		}
 
-		// 記錄 active 進程
 		activeCommands[s.Name] = cmd
 
-		// 非同步讀取日誌
 		go logReader(s.Name, stdout)
 		go logReader(s.Name, stderr)
 
-		// 等待進程退出
 		err = cmd.Wait()
 		delete(activeCommands, s.Name)
 
@@ -169,18 +184,15 @@ func monitorService(s Service) {
 	}
 }
 
-// 停止所有正在運行的子進程
 func stopAllActiveServices() {
 	shouldRestart = false
 	fmt.Println("\n正在終止所有子服務進程...")
 	for name, cmd := range activeCommands {
 		if cmd.Process != nil {
 			fmt.Printf("正在終止服務: %s (PID: %d)...\n", name, cmd.Process.Pid)
-			// 發送 SIGTERM
 			cmd.Process.Signal(syscall.SIGTERM)
 		}
 	}
-	// 給子進程 1 秒時間優雅退出，否則強制 SIGKILL
 	time.Sleep(1 * time.Second)
 	for name, cmd := range activeCommands {
 		if cmd.Process != nil {
@@ -190,13 +202,10 @@ func stopAllActiveServices() {
 	}
 }
 
-// 執行監控與守護 (Foreground 運行)
 func startDaemon() {
-	// 1. 檢查是否已有實例在運行
 	if oldPidBytes, err := ioutil.ReadFile(pidFile); err == nil {
 		oldPid, _ := strconv.Atoi(strings.TrimSpace(string(oldPidBytes)))
 		if oldPid > 0 {
-			// 檢查該進程是否真的存在 (在 Unix 上向 pid 發送 0 號信號)
 			process, err := os.FindProcess(oldPid)
 			if err == nil {
 				if err := process.Signal(syscall.Signal(0)); err == nil {
@@ -207,7 +216,6 @@ func startDaemon() {
 		}
 	}
 
-	// 2. 寫入目前 PID
 	currentPid := os.Getpid()
 	err := ioutil.WriteFile(pidFile, []byte(strconv.Itoa(currentPid)), 0644)
 	if err != nil {
@@ -224,12 +232,10 @@ func startDaemon() {
 		os.Exit(1)
 	}
 
-	// 3. 啟動所有子服務
 	for _, s := range config.Services {
 		go monitorService(s)
 	}
 
-	// 4. 監聽系統訊號
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
@@ -237,12 +243,10 @@ func startDaemon() {
 		sig := <-sigChan
 		switch sig {
 		case syscall.SIGHUP:
-			// 💡 SIGHUP 用於重載設定檔與重啟所有子服務
 			fmt.Println("\n收到 SIGHUP 信號，正在重新讀取設定檔並重啟子服務...")
 			shouldRestart = false
 			stopAllActiveServices()
 			
-			// 重新載入設定
 			config, err = loadConfig()
 			if err != nil {
 				fmt.Printf("重載設定失敗: %v\n", err)
@@ -262,7 +266,6 @@ func startDaemon() {
 	}
 }
 
-// 停止遠端的 one4all 守護進程
 func stopDaemon() {
 	oldPidBytes, err := ioutil.ReadFile(pidFile)
 	if err != nil {
@@ -285,7 +288,6 @@ func stopDaemon() {
 		return
 	}
 
-	// 發送 SIGTERM 訊號
 	err = process.Signal(syscall.SIGTERM)
 	if err != nil {
 		fmt.Printf("無法向進程發送關閉訊號: %v，直接清除 PID 檔案。\n", err)
@@ -293,7 +295,6 @@ func stopDaemon() {
 		return
 	}
 
-	// 循環等待進程退出
 	for i := 0; i < 5; i++ {
 		time.Sleep(500 * time.Millisecond)
 		if err := process.Signal(syscall.Signal(0)); err != nil {
@@ -329,12 +330,73 @@ func reloadNginx() {
 		targetNginxConf = "/etc/nginx/sites-available/one4all"
 	}
 
-	fmt.Printf("正在更新 Nginx 對外 Port 至 %d (寫入至 %s)...\n", config.Nginx.Port, targetNginxConf)
+	// 💡 依據 Nginx 對外 Port 將服務進行分組，生成 ServerConfig
+	serverGroups := make(map[int][]LocationConfig)
+	for _, s := range config.Services {
+		if s.Proxy == nil {
+			continue // 沒有配置代理路由，跳過
+		}
+		
+		extPort := s.Proxy.ExternalPort
+		locs := serverGroups[extPort]
+		
+		if s.Proxy.Type == "direct" {
+			locs = append(locs, LocationConfig{
+				Path:        "/",
+				BackendPort: s.Port,
+				BackendPath: "/",
+			})
+		} else if s.Proxy.Type == "path" {
+			// 加入主 path
+			locs = append(locs, LocationConfig{
+				Path:        s.Proxy.Path,
+				BackendPort: s.Port,
+				BackendPath: "/",
+			})
+			// 加入額外的 extra_paths 對應
+			for _, ep := range s.Proxy.ExtraPaths {
+				locs = append(locs, LocationConfig{
+					Path:        ep.Path,
+					BackendPort: s.Port,
+					BackendPath: ep.BackendPath,
+				})
+			}
+		}
+		serverGroups[extPort] = locs
+	}
 
-	re := regexp.MustCompile(`listen\s+\d+;\s*#\s*DYNAMIC_PORT`)
-	updatedConf := re.ReplaceAllString(nginxTemplate, fmt.Sprintf("listen %d; # DYNAMIC_PORT", config.Nginx.Port))
+	// 排序 ServerConfig 以保證生成的文件格式穩定
+	var sortedPorts []int
+	for port := range serverGroups {
+		sortedPorts = append(sortedPorts, port)
+	}
+	sort.Ints(sortedPorts)
 
-	err = ioutil.WriteFile(targetNginxConf, []byte(updatedConf), 0644)
+	var servers []ServerConfig
+	for _, port := range sortedPorts {
+		servers = append(servers, ServerConfig{
+			Port:      port,
+			Locations: serverGroups[port],
+		})
+	}
+
+	fmt.Printf("正在使用 Go Template 動態生成 Nginx 設定檔 (寫入至 %s)...\n", targetNginxConf)
+	
+	// 動態解析與執行模板
+	tmpl, err := template.New("nginx").Parse(nginxTemplate)
+	if err != nil {
+		fmt.Printf("錯誤: 語法錯誤的 Nginx 模板: %v\n", err)
+		return
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, servers); err != nil {
+		fmt.Printf("錯誤: 模板渲染失敗: %v\n", err)
+		return
+	}
+
+	// 寫入目的地
+	err = ioutil.WriteFile(targetNginxConf, buf.Bytes(), 0644)
 	if err != nil {
 		fmt.Printf("錯誤: 無法寫入 Nginx 設定檔！\n詳細錯誤: %v\n", err)
 		if runtime.GOOS != "darwin" {
@@ -378,7 +440,6 @@ func reloadNginx() {
 	}
 }
 
-// 取得當前守護進程狀態
 func showStatus() {
 	oldPidBytes, err := ioutil.ReadFile(pidFile)
 	if err != nil {
@@ -391,12 +452,19 @@ func showStatus() {
 	if err == nil && process.Signal(syscall.Signal(0)) == nil {
 		fmt.Printf("Status: one4all 正在背景運行中 (PID: %d)\n", pid)
 		
-		// 載入設定檔印出管理的子服務
 		config, err := loadConfig()
 		if err == nil {
 			fmt.Println("\n所管理的服務清單:")
 			for _, s := range config.Services {
-				fmt.Printf(" - %s (Port: %d, Cwd: %s)\n", s.Name, s.Port, s.Cwd)
+				proxyInfo := "無對外代理"
+				if s.Proxy != nil {
+					if s.Proxy.Type == "direct" {
+						proxyInfo = fmt.Sprintf("直連代理 Port: %d ➜ %d", s.Proxy.ExternalPort, s.Port)
+					} else {
+						proxyInfo = fmt.Sprintf("分流代理 Port: %d ➜ %s (➜ %d)", s.Proxy.ExternalPort, s.Proxy.Path, s.Port)
+					}
+				}
+				fmt.Printf(" - %s (Port: %d, Cwd: %s, %s)\n", s.Name, s.Port, s.Cwd, proxyInfo)
 			}
 		}
 	} else {
@@ -405,12 +473,9 @@ func showStatus() {
 	}
 }
 
-// 通知主進程重載子服務
 func notifyReload() {
-	// 先更新與重載 Nginx
 	reloadNginx()
 
-	// 再通知 one4all 主進程重載子服務
 	oldPidBytes, err := ioutil.ReadFile(pidFile)
 	if err != nil {
 		fmt.Println("提示: one4all 主進程未在運行中，已完成 Nginx 設定重載。")
@@ -445,10 +510,8 @@ func main() {
 	case "run":
 		startDaemon()
 	case "start":
-		// 背景啟動的實現: 呼叫自身並在背景執行
 		exePath, _ := os.Executable()
 		cmd := exec.Command(exePath, "run")
-		// 將 stdout/stderr 重定向到日誌檔案
 		logFile, err := os.OpenFile(filepath.Join(scriptDir, "one4all_daemon.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
 			fmt.Printf("無法建立日誌檔: %v\n", err)
