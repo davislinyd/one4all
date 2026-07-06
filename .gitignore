@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+
+# Local session files
+.ai/status.json
+
+# Node & PM2
+node_modules/
+*.log
+.pm2/
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+env/

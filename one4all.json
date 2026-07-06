@@ -1,0 +1,24 @@
+{
+  "nginx": {
+    "port": 9002,
+    "config_name": "one4all.conf"
+  },
+  "services": [
+    {
+      "name": "video2gif",
+      "port": 9003,
+      "script": "app.py",
+      "cwd": "./services/video2gif",
+      "interpreter": "python3",
+      "args": "--port 9003"
+    },
+    {
+      "name": "another_app",
+      "port": 9004,
+      "script": "app.py",
+      "cwd": "./services/another_app",
+      "interpreter": "python3",
+      "args": "--port 9004"
+    }
+  ]
+}

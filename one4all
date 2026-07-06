@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+
+# One for All - Service Control CLI
+# 用途：一鍵啟動/停止所有後端 PM2 服務，以及重載 Nginx 反向代理。
+
+# 確保在腳本所在目錄執行，以便正確讀取 one4all.json
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_FILE="${SCRIPT_DIR}/one4all.json"
+
+# 自動擴充 PATH，確保能找到 Homebrew 的命令 (如 nginx, pm2)
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/sbin:/sbin:/usr/bin:/bin:${PATH}"
+
+
+# 檢查設定檔是否存在
+if [ ! -f "${CONFIG_FILE}" ]; then
+    echo "錯誤: 找不到設定檔 ${CONFIG_FILE}"
+    exit 1
+fi
+
+# 偵測作業系統
+OS_TYPE="$(uname -s)"
+
+# 檢查 PM2 是否安裝
+check_pm2() {
+    if ! command -v pm2 &> /dev/null; then
+        echo "錯誤: 系統未安裝 pm2。請先安裝 Node.js 並執行: npm install -g pm2"
+        exit 1
+    fi
+}
+
+# 檢查 Nginx 並重載
+reload_nginx() {
+    echo "=== 正在測試與重載 Nginx ==="
+    
+    # 偵測 Nginx 指令
+    if command -v nginx &> /dev/null; then
+        NGINX_CMD="nginx"
+    elif [ -f "/opt/homebrew/bin/nginx" ]; then
+        NGINX_CMD="/opt/homebrew/bin/nginx"
+    elif [ -f "/usr/sbin/nginx" ]; then
+        NGINX_CMD="/usr/sbin/nginx"
+    else
+        echo "警告: 找不到 nginx 執行檔，跳過 Nginx 重載。請手動重載 Nginx。"
+        return 1
+    fi
+
+    # 測試 Nginx 設定 (macOS 不需要 sudo)
+    echo "測試 Nginx 設定檔語法..."
+    if [ "${OS_TYPE}" = "Darwin" ]; then
+        ${NGINX_CMD} -t
+    else
+        sudo ${NGINX_CMD} -t
+    fi
+
+    if [ $? -eq 0 ]; then
+        echo "Nginx 設定語法正確。"
+    else
+        echo "錯誤: Nginx 設定語法測試失敗！請檢查您的 nginx.conf。"
+        return 1
+    fi
+
+    # 執行重載 (macOS 不需要 sudo)
+    echo "正在重載 Nginx 服務..."
+    if [ "${OS_TYPE}" = "Darwin" ]; then
+        ${NGINX_CMD} -s reload
+    else
+        # Linux (Ubuntu/Debian)
+        if command -v systemctl &> /dev/null; then
+            sudo systemctl reload nginx
+        else
+            sudo service nginx reload
+        fi
+    fi
+    
+    if [ $? -eq 0 ]; then
+        echo "Nginx 重載成功！"
+    else
+        echo "錯誤: Nginx 重載失敗，請檢查權限或 Nginx 狀態。"
+    fi
+}
+
+# 執行服務操作 (start/stop/restart)
+manage_services() {
+    local action=$1
+    check_pm2
+    
+    # 使用 python3 解析 json 設定檔中的 services
+    # 輸出格式為: name|cwd|script|interpreter|args，每一行代表一個服務
+    local services_raw
+    services_raw=$(python3 -c "
+import json
+try:
+    with open('${CONFIG_FILE}', 'r') as f:
+        data = json.load(f)
+        for s in data.get('services', []):
+            print(f\"{s['name']}|{s.get('cwd', '.')}|{s['script']}|{s.get('interpreter', 'python3')}|{s.get('args', '')}\")
+except Exception as e:
+    import sys
+    print(f'ERROR:{e}', file=sys.stderr)
+" 2>/dev/null)
+
+    if [[ "$services_raw" == ERROR:* ]] || [ -z "$services_raw" ]; then
+        echo "錯誤: 解析 one4all.json 失敗，請確認其 JSON 語法是否正確。"
+        exit 1
+    fi
+
+    echo "=== 執行後端服務操作: ${action} ==="
+
+    # 將 IFS 設為換行符，逐行處理服務
+    local old_ifs=$IFS
+    IFS=$'\n'
+    for line in $services_raw; do
+        IFS='|' read -r name cwd script interpreter args <<< "$line"
+        
+        # 轉換相對路徑為絕對路徑
+        local abs_cwd="${cwd}"
+        if [[ "${cwd}" == .* ]]; then
+            abs_cwd="${SCRIPT_DIR}/${cwd#./}"
+        fi
+
+        case "${action}" in
+            start)
+                echo "正在啟動服務: ${name} (在 ${abs_cwd})"
+                if [ ! -d "${abs_cwd}" ]; then
+                    echo "警告: 目錄 ${abs_cwd} 不存在，跳過此服務。"
+                    continue
+                fi
+                # 切換到該目錄執行，確保 PM2 能正確載入其相對資源
+                (cd "${abs_cwd}" && pm2 start "${script}" --name "${name}" --interpreter "${interpreter}" -- ${args})
+                ;;
+            stop)
+                echo "正在停止服務: ${name}"
+                pm2 stop "${name}" 2>/dev/null || echo "服務 ${name} 未在運行中。"
+                ;;
+            restart)
+                echo "正在重啟服務: ${name}"
+                if pm2 describe "${name}" &> /dev/null; then
+                    pm2 restart "${name}"
+                else
+                    if [ ! -d "${abs_cwd}" ]; then
+                        echo "警告: 目錄 ${abs_cwd} 不存在，跳過此服務。"
+                        continue
+                    fi
+                    (cd "${abs_cwd}" && pm2 start "${script}" --name "${name}" --interpreter "${interpreter}" -- ${args})
+                fi
+                ;;
+        esac
+    done
+    IFS=$old_ifs
+}
+
+# 指令幫助說明
+show_usage() {
+    echo "使用方式: $0 {start|stop|restart|reload|status}"
+    echo "  start   : 啟動 one4all.json 中定義的所有後端服務"
+    echo "  stop    : 停止所有後端服務"
+    echo "  restart : 重啟所有後端服務"
+    echo "  reload  : 重啟所有後端服務並重載 Nginx"
+    echo "  status  : 查看所有後端服務運行狀態 (PM2 list)"
+}
+
+# 主控制邏輯
+case "$1" in
+    start)
+        manage_services "start"
+        ;;
+    stop)
+        manage_services "stop"
+        ;;
+    restart)
+        manage_services "restart"
+        ;;
+    reload)
+        manage_services "restart"
+        reload_nginx
+        ;;
+    status)
+        check_pm2
+        pm2 list
+        ;;
+    *)
+        show_usage
+        exit 1
+        ;;
+esac
+
+exit 0
