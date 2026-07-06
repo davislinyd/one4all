@@ -10,25 +10,36 @@
 ![One for All 系統架構圖](architecture.svg)
 
 ```mermaid
-graph TD
-    Client["Client / Browser / MCP Client"] -- "HTTP / WS (Port: 443)" --> Nginx443["Nginx Server (Port: 443)"]
-    Client -- "HTTP / SSE / WS (Port: 9002)" --> Nginx9002["Nginx Server (Port: 9002)"]
-    
-    Nginx443 -- "Direct Proxy /" --> S1["service1 Python App (Port: 8080)"]
-    Nginx9002 -- "Path: /video2gif/*" --> S2["video2gif Python App (Port: 9003)"]
-    Nginx9002 -- "Path: /another_app/*" --> S3["another_app Python App (Port: 9004)"]
-    Nginx9002 -- "Path: /convert" --> S2
-    
-    subgraph Go Supervisor ["one4all Go CLI / Daemon"]
-        JSON["one4all.json Config"] --> Supervisor["Go Supervisor Process"]
-        Supervisor -- "Monitor & Auto-restart" --> S1
-        Supervisor -- "Monitor & Auto-restart" --> S2
-        Supervisor -- "Monitor & Auto-restart" --> S3
+graph LR
+    classDef client fill:#f8fafc,stroke:#3b82f6,stroke-width:2px;
+    classDef nginx fill:#f8fafc,stroke:#10b981,stroke-width:2px;
+    classDef backend fill:#f8fafc,stroke:#f59e0b,stroke-width:2px;
+    classDef supervisor fill:#f8fafc,stroke:#06b6d4,stroke-width:2px,stroke-dasharray: 3 3;
+
+    %% 1. 流量入口
+    Client["Client / Browser"]:::client
+
+    %% 2. 閘道分流層
+    subgraph Gateway ["One for All 閘道器"]
+        Nginx["Nginx Gateway"]:::nginx
+        Supervisor["Go Supervisor (one4all)"]:::supervisor
+        Supervisor -. "1. 動態配置與重載" .-> Nginx
     end
-    
-    Developer["Developer / CLI User"] -- "SIGHUP / SIGTERM / CLI Commands" --> Supervisor
-    Developer -- "Configure Nginx Port" --> JSON
-    Supervisor -- "Write & Reload Config" --> Nginx9002
+
+    %% 3. 後端服務層
+    subgraph Backends ["Python 後端服務群"]
+        S1["service1 (Port: 8080)"]:::backend
+        S2["video2gif (Port: 9003)"]:::backend
+        S3["another_app (Port: 9004)"]:::backend
+    end
+
+    %% 流量路由關係
+    Client -- "Port 443" --> Nginx -- "直連代理 /" --> S1
+    Client -- "Port 9002" --> Nginx -- "分流 /video2gif/" --> S2
+    Nginx -- "分流 /another_app/" --> S3
+
+    %% 守護與監控關係
+    Supervisor -. "2. 進程守護與自動重啟" .-> Backends
 ```
 
 ---
