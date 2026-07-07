@@ -1,5 +1,11 @@
 # One for All - Nginx Reverse Proxy & Go Supervisor Gateway
 
+[繁體中文](#one-for-all---nginx-reverse-proxy--go-supervisor-gateway-繁體中文) | [English](#one-for-all---nginx-reverse-proxy--go-supervisor-gateway-english)
+
+---
+
+## One for All - Nginx Reverse Proxy & Go Supervisor Gateway (繁體中文)
+
 此專案為多個 Python/SSE/WebSocket MCP (Model Context Protocol) 服務的本地開發與部署閘道器 (Gateway)。
 它對外提供多 Port 暴露與聲明式路由分流，並利用 Nginx 將流量轉發至內部運行於不同 Port 的 Python 服務。
 
@@ -7,7 +13,7 @@
 
 ---
 
-## 系統架構與流程圖
+### 系統架構與流程圖
 
 ![One for All 系統架構圖](https://raw.githubusercontent.com/davislinyd/one4all/main/architecture.svg?v=4)
 
@@ -50,11 +56,11 @@ graph LR
 
 ---
 
-## 1. 核心技術原理
+### 1. 核心技術原理
 
 本閘道器由 **Go Supervisor** 與 **Nginx Reverse Proxy** 兩大核心模組無縫協作，底層技術細節如下：
 
-### A. Go 守護進程核心機制
+#### A. Go 守護進程核心機制
 * **進程生命週期監控 (Goroutines Supervisor)**：  
   當啟動 `run`/`start` 時，Go 主進程會為 [one4all.json](file:///Users/lindav/git/one4all/one4all.json) 中配置的每個服務拉起一個獨立的 Goroutine。透過 `os/exec` 監控子進程狀態，若子進程因異常或退出（Exit Code != 0），會在 **2 秒後自動重啟**。
 * **Unix 信號熱重載 (SIGHUP Hot Reload)**：  
@@ -68,7 +74,7 @@ graph LR
 * **執行緒安全與併發保護 (Thread-Safety & Race Condition Prevention)**：  
   在多 Goroutine 併發拉起與監控子服務的架構下，引入 `sync.Mutex` 互斥鎖保護對執行中子進程狀態 Map 的存取與刪除，保證守護進程在高併發自癒重啟環境下 100% 穩定，免受 Concurrent Map Writes Panic 威脅。
 
-### B. Nginx 聲明式動態渲染與協定優化
+#### B. Nginx 聲明式動態渲染與協定優化
 * **Go Text Template 模板引擎**：  
   Nginx 的配置範本定義在 [nginx.tmpl](file:///Users/lindav/git/one4all/nginx.tmpl) 中，並於編譯期被 `//go:embed` 直接嵌入二進位檔。Go 在執行 `reload` 時，會將 JSON 中的服務**依據對外 Port (`external_port`) 進行分組 (Grouping) 演算法**，為每個獨特的 Port 生成對應的 `server` 區塊與多個 `location` 路由，完全不需要人工編輯 Nginx 配置。
 * **HTTP/SSE (Server-Sent Events) 優化**：  
@@ -84,7 +90,7 @@ graph LR
 
 ---
 
-## 2. 專案目錄與核心檔案
+### 2. 專案目錄與核心檔案
 
 * **[main.go](file:///Users/lindav/git/one4all/main.go)**：原生 Go 守護進程與 CLI 工具原始碼。
 * **[nginx.tmpl](file:///Users/lindav/git/one4all/nginx.tmpl)**：Nginx 配置的 Go Template 範本檔。
@@ -93,9 +99,9 @@ graph LR
 
 ---
 
-## 3. 環境準備與首次編譯
+### 3. 環境準備與首次編譯
 
-### macOS (Apple Silicon 或 Intel)
+#### macOS (Apple Silicon 或 Intel)
 1. **安裝 Nginx**：
    ```bash
    brew install nginx
@@ -105,7 +111,7 @@ graph LR
    brew install go
    ```
 
-### Linux (Ubuntu / Debian)
+#### Linux (Ubuntu / Debian)
 1. **安裝 Nginx**：
    ```bash
    sudo apt update && sudo apt install -y nginx
@@ -115,7 +121,7 @@ graph LR
    sudo apt install -y golang
    ```
 
-### 首次編譯
+#### 首次編譯
 在專案根目錄下，執行以下指令編譯出您該作業系統平台專屬的二進位執行檔：
 ```bash
 go build -o one4all main.go
@@ -124,7 +130,7 @@ go build -o one4all main.go
 
 ---
 
-## 4. CLI 使用與操作說明
+### 4. CLI 使用與操作說明
 
 | 指令 | 執行模式 | 核心行為 | 背景訊號/機制 |
 | :--- | :--- | :--- | :--- |
@@ -136,11 +142,11 @@ go build -o one4all main.go
 
 ---
 
-## 5. 宣告式路由配置範例 (如何彈性擴展)
+### 5. 宣告式路由配置範例 (如何彈性擴展)
 
 所有的路由分流、Port 暴露、Python 服務啟動參數均在 [one4all.json](file:///Users/lindav/git/one4all/one4all.json) 中進行配置。
 
-### 範例：新增直連代理、路徑分流與外網反向代理
+#### 範例：新增直連代理、路徑分流與外網反向代理
 假設您要新增以下三個服務：
 1. **`my_api` 服務** ── 運行在 Port `8081`。希望 Nginx 額外監聽 **`80`** 埠並**直連代理**（即 `http://127.0.0.1:80/` ➜ `8081`）。
 2. **`image_mcp` 服務** ── 運行在 Port `9007`。希望 Nginx 在原先對外的 **`9002`** 埠下，新增一個**分流路徑** `/image/`（即 `http://127.0.0.1:9002/image/` ➜ `9007`）。
@@ -206,7 +212,7 @@ Go 會自動將配置渲染並重載，完成部署！
 
 ---
 
-## 6. 排錯與常見問題 (Troubleshooting)
+### 6. 排錯與常見問題 (Troubleshooting)
 
 #### 1. 執行 `./one4all reload` 時出現 `Permission denied`？
 * **原因**：Nginx 配置了小於 `1024` 的特權埠（如 `443` 或 `80`），普通用戶無權限綁定。
@@ -221,4 +227,230 @@ Go 會自動將配置渲染並重載，完成部署！
 * **解法**：
   1. 執行 `./one4all status` 確認該 Python 服務目前是否處於啟動狀態。
   2. 檢查 `one4all_daemon.log`，確認該 Python 服務啟動時是否因代碼語法錯誤或缺少依賴套件而崩潰。
-  3. 驗證服務의 `port` 參數是否與 Python 啟動的監聽 Port 一致。
+  3. 驗證服務的 `port` 參數是否與 Python 啟動的監聽 Port 一致。
+
+---
+---
+
+## One for All - Nginx Reverse Proxy & Go Supervisor Gateway (English)
+
+This project serves as a local development and deployment API Gateway for managing multiple Python, SSE, and WebSocket MCP (Model Context Protocol) services.
+It exposes multiple external ports, implements declarative path-based routing, and utilizes Nginx to forward traffic to background Python processes running on different internal ports.
+
+This project uses a compiled native Go binary to function directly as a lightweight process monitor (Supervisor).
+
+---
+
+### System Architecture & Flowchart
+
+![One for All Gateway Diagram](https://raw.githubusercontent.com/davislinyd/one4all/main/architecture.svg?v=4)
+
+```mermaid
+graph LR
+    classDef client fill:#f8fafc,stroke:#3b82f6,stroke-width:2px;
+    classDef nginx fill:#f8fafc,stroke:#10b981,stroke-width:2px;
+    classDef backend fill:#f8fafc,stroke:#f59e0b,stroke-width:2px;
+    classDef supervisor fill:#f8fafc,stroke:#06b6d4,stroke-width:2px,stroke-dasharray: 3 3;
+    classDef internet fill:#f8fafc,stroke:#8b5cf6,stroke-width:2px;
+
+    %% 1. Traffic Entry
+    Client["Client / Browser"]:::client
+
+    %% 2. Gateway Layer
+    subgraph Gateway ["One for All Gateway"]
+        Nginx["Nginx Gateway"]:::nginx
+        Supervisor["Go Supervisor (one4all)"]:::supervisor
+        Supervisor -. "1. Dynamic Config & Reload" .-> Nginx
+    end
+
+    %% 3. Backend & Upstream Layer
+    subgraph Backends ["Python Backends"]
+        S1["service1 (Port: 8085)"]:::backend
+        S2["video2gif (Port: 9003)"]:::backend
+        S3["another_app (Port: 9004)"]:::backend
+    end
+    
+    Internet["Internet Website (e.g. example.com)"]:::internet
+
+    %% Traffic Routing
+    Client -- "Port 443" --> Nginx -- "Direct Proxy /" --> S1
+    Client -- "Port 9002" --> Nginx -- "Routing /video2gif/" --> S2
+    Nginx -- "Routing /another_app/" --> S3
+    Client -- "Port 9010" --> Nginx -- "Internet Proxy" --> Internet
+
+    %% Process Guarding
+    Supervisor -. "2. Process Supervision & Autorestart" .-> Backends
+```
+
+---
+
+### 1. Core Technical Principles
+
+The gateway consists of two main modules working in harmony: **Go Supervisor** and **Nginx Reverse Proxy**.
+
+#### A. Go Supervisor Core Mechanisms
+* **Process Lifecycle Supervision (Goroutines)**:  
+  Upon launching `run` or `start`, the Go main process spins up a dedicated goroutine for each service declared in [one4all.json](file:///Users/lindav/git/one4all/one4all.json). By wrapping `os/exec`, it tracks child process states. If a child process crashes or exits unexpectedly, the supervisor **automatically restarts it after 2 seconds**.
+* **UNIX Signals Hot Reload (SIGHUP)**:  
+  The supervisor process continuously listens for `syscall.SIGHUP` signals. Running `./one4all reload` triggers CLI to transmit a `SIGHUP` signal to the active background daemon. The daemon then gracefully terminates active Python child processes, parses the updated JSON config, and spins up the newly configured services **without restarting the parent Go daemon**.
+* **Graceful Termination & Orphan Prevention (SIGINT / SIGTERM)**:  
+  Upon receiving a termination signal (such as `SIGINT`, `SIGTERM`, or running `./one4all stop`), Go begins a teardown routine: it sends `SIGTERM` to all child processes allowing them to release ports, waits 1 second, forcefully terminates any remaining processes with `SIGKILL`, removes the PID file, and exits cleanly. This **eliminates the risk of lingering orphan processes**.
+* **Decoupled Ports via `{{.Port}}` Dynamic Injection**:  
+  When spawning child processes, Go parses the `args` parameter and dynamically substitutes any `{{.Port}}` placeholders with the service's actual `port` value. This ensures Nginx forwarding target matches the Python socket listener, avoiding port configuration mismatch.
+* **Thread-Safety & Race Prevention (sync.Mutex)**:  
+  In concurrent supervisor goroutines, a `sync.Mutex` guards read/write/delete operations on the active processes map (`activeCommands`), avoiding `concurrent map writes` runtime panics.
+* **Unified Log Aggregation**:  
+  Go intercepts both `stdout` and `stderr` streams of all services via pipes, prefixes each line with a timestamp and a service identifier tag, and aggregates the output streams.
+
+#### B. Declarative Nginx Generation & Protocol Optimizations
+* **Go Text Template Engine**:  
+  The Nginx base configuration is defined in [nginx.tmpl](file:///Users/lindav/git/one4all/nginx.tmpl) and embedded directly into the Go executable via `//go:embed`. Upon `reload`, Go groups services by `external_port` and renders corresponding `server` and `location` blocks dynamically, removing the need for manual configuration edits.
+* **HTTP / Server-Sent Events (SSE) Tuning**:  
+  For AI streaming interfaces, the template enforces:
+  - `proxy_buffering off;` ── Disables response buffering, ensuring SSE tokens are immediately pushed to client browsers.
+  - `proxy_read_timeout 86400s;` ── Extends read timeout to 24 hours, preventing Nginx from closing long-lived HTTP streams.
+* **WebSocket Dynamic Protocol Upgrades**:  
+  Utilizes the Nginx `map` directive on `$http_upgrade`. If a request headers contains `Upgrade: websocket`, Nginx dynamically initiates `Connection: upgrade` handshake to downstream backends. This permits HTTP, SSE, and WS to share the same Location route.
+* **Route Mapping & Sub-path Rewrites**:  
+  Supports mapping specific paths (e.g. `/convert`) to different target backend sub-paths using the `extra_paths` configuration.
+* **Large Payload Support**:  
+  Applies `client_max_body_size 50M;` globally per location, enabling raw file uploads (such as MP4 video files) and bypassing default 1MB limits.
+
+---
+
+### 2. Project Directory & Core Files
+
+* **[main.go](file:///Users/lindav/git/one4all/main.go)**: Entrypoint for Go supervisor logic & CLI subcommands.
+* **[nginx.tmpl](file:///Users/lindav/git/one4all/nginx.tmpl)**: Go template file for compiling Nginx server configurations.
+* **[one4all.json](file:///Users/lindav/git/one4all/one4all.json)**: Main declarative settings catalog.
+* **[.gitignore](file:///Users/lindav/git/one4all/.gitignore)**: Standard git exclusion files.
+
+---
+
+### 3. Prerequisites & Compilation
+
+#### macOS (Apple Silicon or Intel)
+1. **Install Nginx**:
+   ```bash
+   brew install nginx
+   ```
+2. **Install Go**:
+   ```bash
+   brew install go
+   ```
+
+#### Linux (Ubuntu / Debian)
+1. **Install Nginx**:
+   ```bash
+   sudo apt update && sudo apt install -y nginx
+   ```
+2. **Install Go**:
+   ```bash
+   sudo apt install -y golang
+   ```
+
+#### Compilation
+Compile the platform-specific executable directly from root folder:
+```bash
+go build -o one4all main.go
+```
+*This produces a single, self-contained `one4all` executable.*
+
+---
+
+### 4. CLI Subcommand Reference
+
+| Command | Execution Mode | Behavior | Background UNIX Signals |
+| :--- | :--- | :--- | :--- |
+| **`./one4all run`** | Foreground | Spawns supervisor daemon and outputs all aggregated child service stdout/stderr logs directly. | Stays in foreground. Responds to `Ctrl+C` by issuing `SIGTERM` to children. |
+| **`./one4all start`** | Daemon | Launches supervisor in background. Logs are written to `one4all_daemon.log`. | Forwards to `run` internally, generates `one4all.pid` lock file. |
+| **`./one4all status`** | Info | Inspects if daemon is running. Prints current pid and active routing maps. | Checks `one4all.pid` file and pings PID with signal `0`. |
+| **`./one4all reload`** | Hot Reload | 1. Compiles `one4all.json` configurations into Nginx configuration.<br>2. Tests Nginx syntax and signals `reload`.<br>3. Signals active supervisor daemon to reload settings and restart services. | Dispatches `SIGHUP` signal to the PID found in `one4all.pid`. |
+| **`./one4all stop`** | Teardown | Shuts down background Go supervisor and gracefully cleans up all child processes. | Dispatches `SIGTERM` to background daemon and awaits safe teardown. |
+
+---
+
+### 5. Declarative Routing Config Examples (How to Extend)
+
+All routing configurations and service parameters are managed in [one4all.json](file:///Users/lindav/git/one4all/one4all.json).
+
+#### Example: Extending with Direct Proxy, Path Routing, and External Internet Proxy
+Assume you want to register three new items:
+1. **`my_api` service** ── Running locally on port `8081`. Direct proxy via Nginx port **`80`** (i.e. `http://127.0.0.1:80/` ➜ `8081`).
+2. **`image_mcp` service** ── Running locally on port `9007`. Mount on path `/image/` under Nginx port **`9002`** (i.e. `http://127.0.0.1:9002/image/` ➜ `9007`).
+3. **External Internet Proxy** ── Reverse proxy Nginx port **`9010`** directly to **`https://github.com/`** without launching any local scripts.
+
+Simply append these declarations into the `services` array inside [one4all.json](file:///Users/lindav/git/one4all/one4all.json):
+
+```json
+{
+  "nginx": {
+    "config_name": "one4all.conf"
+  },
+  "services": [
+    // 1. Existing service1, video2gif, another_app...
+    
+    // 2. Add local direct proxy service
+    {
+      "name": "my_api",
+      "port": 8081,
+      "script": "main.py",
+      "cwd": "/path/to/my_api",
+      "interpreter": "python3",
+      "args": "--port {{.Port}}",
+      "proxy": {
+        "type": "direct",
+        "external_port": 80
+      }
+    },
+    // 3. Add local path-based routing service
+    {
+      "name": "image_mcp",
+      "port": 9007,
+      "script": "app.py",
+      "cwd": "./services/image_mcp",
+      "interpreter": "python3",
+      "args": "--port {{.Port}}",
+      "proxy": {
+        "type": "path",
+        "external_port": 9002,
+        "path": "/image/"
+      }
+    },
+    // 4. Add external website reverse proxy
+    {
+      "name": "github_proxy",
+      "port": 0,                           // 💡 port 0 means no local process is bound
+      "script": "",                        // 💡 Leave script empty, supervisor will skip execution
+      "proxy": {
+        "type": "direct",
+        "external_port": 9010,
+        "proxy_pass": "https://github.com/" // 💡 Upstream destination. Rewrites Host header & SNI handshake automatically
+      }
+    }
+  ]
+}
+```
+
+Deploy the changes immediately:
+```bash
+./one4all reload
+```
+
+---
+
+### 6. Troubleshooting & FAQs
+
+#### 1. `./one4all reload` returns `Permission denied`?
+* **Cause**: You configured Nginx to listen on privileged ports below 1024 (like `80` or `443`), which requires administrative privileges.
+* **Fix**: Run reload command using `sudo`:
+  ```bash
+  sudo ./one4all reload
+  ```
+
+#### 2. Nginx returns `502 Bad Gateway`?
+* **Cause**: Nginx is running but unable to communicate with backend Python listeners.
+* **Fix**:
+  1. Inspect `./one4all status` to check if supervisor daemon is actively running.
+  2. Inspect `one4all_daemon.log` to check if Python services crashed due to syntax errors or missing dependencies.
+  3. Validate if target `port` matches the Python runtime listener port.
