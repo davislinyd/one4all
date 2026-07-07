@@ -140,10 +140,11 @@ go build -o one4all main.go
 
 所有的路由分流、Port 暴露、Python 服務啟動參數均在 [one4all.json](file:///Users/lindav/git/one4all/one4all.json) 中進行配置。
 
-### 範例：新增直連代理與路徑分流
-假設您要新增以下兩個服務：
+### 範例：新增直連代理、路徑分流與外網反向代理
+假設您要新增以下三個服務：
 1. **`my_api` 服務** ── 運行在 Port `8081`。希望 Nginx 額外監聽 **`80`** 埠並**直連代理**（即 `http://127.0.0.1:80/` ➜ `8081`）。
 2. **`image_mcp` 服務** ── 運行在 Port `9007`。希望 Nginx 在原先對外的 **`9002`** 埠下，新增一個**分流路徑** `/image/`（即 `http://127.0.0.1:9002/image/` ➜ `9007`）。
+3. **外網反向代理** ── 希望 Nginx 監聽 **`9010`** 埠，並將所有流量直連反向代理至外部網站 **`https://github.com/`**（無須啟動本地進程）。
 
 您**不需要修改 Nginx 設定檔**，只需在 [one4all.json](file:///Users/lindav/git/one4all/one4all.json) 中的 `services` 陣列加入以下宣告：
 
@@ -180,6 +181,17 @@ go build -o one4all main.go
         "type": "path",
         "external_port": 9002,
         "path": "/image/"
+      }
+    },
+    // 4. 新增的外網反向代理 (純代理，免啟動本地服務)
+    {
+      "name": "github_proxy",
+      "port": 0,                           // 💡 port: 0 代表無本地實體服務進程
+      "script": "",                        // 💡 留空，Go Supervisor 會自動跳過此服務監控
+      "proxy": {
+        "type": "direct",
+        "external_port": 9010,
+        "proxy_pass": "https://github.com/" // 💡 指定外網 URL，會自動重寫 Host 標頭與啟用 SNI 握手
       }
     }
   ]
