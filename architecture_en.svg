@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" width="100%" height="100%">
+  <defs>
+    <!-- Drop Shadow for Cards -->
+    <filter id="flat-shadow" x="-5%" y="-5%" width="110%" height="115%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.08" />
+    </filter>
+    
+    <!-- Markers for arrows -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#64748b" />
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#2563eb" />
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#16a34a" />
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#7c3aed" />
+    </marker>
+  </defs>
+
+  <!-- White Background -->
+  <rect width="900" height="560" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" />
+
+  <!-- Title -->
+  <text x="40" y="45" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="800" fill="#0f172a" letter-spacing="0.5">
+    ONE FOR ALL ── GATEWAY ARCHITECTURE
+  </text>
+
+  <!-- ==================== 1. CARDS (BACKGROUND LAYER) ==================== -->
+
+  <!-- Card 1: Client -->
+  <g filter="url(#flat-shadow)">
+    <rect x="40" y="180" width="150" height="100" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1" />
+    <rect x="40" y="180" width="150" height="6" rx="2" fill="#3b82f6" />
+    <text x="115" y="215" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">Client App</text>
+    <text x="115" y="238" font-family="monospace" font-size="10" fill="#475569" text-anchor="middle">HTTP / SSE / WS</text>
+    <text x="115" y="258" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#94a3b8" text-anchor="middle">Browser or MCP client</text>
+  </g>
+
+  <!-- Card 2: Nginx Server 1 (Port 443) -->
+  <g filter="url(#flat-shadow)">
+    <rect x="290" y="100" width="190" height="70" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1" />
+    <rect x="290" y="100" width="190" height="6" rx="2" fill="#10b981" />
+    <text x="385" y="132" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Nginx Server 1</text>
+    <text x="385" y="152" font-family="monospace" font-size="10" fill="#0f766e" text-anchor="middle">Port 443 (Direct Proxy)</text>
+  </g>
+
+  <!-- Card 3: Nginx Server 2 (Port 9002) -->
+  <g filter="url(#flat-shadow)">
+    <rect x="290" y="190" width="190" height="80" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1" />
+    <rect x="290" y="190" width="190" height="6" rx="2" fill="#10b981" />
+    <text x="385" y="222" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Nginx Server 2</text>
+    <text x="385" y="242" font-family="monospace" font-size="10" fill="#0f766e" text-anchor="middle">Port 9002 (Dynamic Routing)</text>
+    <text x="385" y="258" font-family="system-ui, -apple-system, sans-serif" font-size="8" fill="#94a3b8" text-anchor="middle">Path-based routing</text>
+  </g>
+
+  <!-- Card 4: Go Supervisor -->
+  <g filter="url(#flat-shadow)">
+    <rect x="290" y="360" width="190" height="70" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1" />
+    <rect x="290" y="360" width="190" height="6" rx="2" fill="#06b6d4" />
+    <text x="385" y="392" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Go Supervisor</text>
+    <text x="385" y="412" font-family="monospace" font-size="10" fill="#0891b2" text-anchor="middle">./one4all (Daemon)</text>
+  </g>
+
+  <!-- Card 5: Nginx Server 3 (Port 9010) -->
+  <g filter="url(#flat-shadow)">
+    <rect x="290" y="450" width="190" height="70" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1" />
+    <rect x="290" y="450" width="190" height="6" rx="2" fill="#8b5cf6" />
+    <text x="385" y="482" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Nginx Server 3</text>
+    <text x="385" y="502" font-family="monospace" font-size="9" fill="#6d28d9" text-anchor="middle">Port 9010 (Internet Proxy)</text>
+  </g>
+
+  <!-- Card 6: service1 Python App -->
+  <g filter="url(#flat-shadow)">
+    <rect x="570" y="80" width="190" height="60" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1" />
+    <rect x="570" y="80" width="190" height="6" rx="2" fill="#f59e0b" />
+    <text x="665" y="112" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">service1 App</text>
+    <text x="665" y="128" font-family="monospace" font-size="9" fill="#b45309" text-anchor="middle">Port 8085 (HTTP)</text>
+  </g>
+
+  <!-- Card 7: video2gif Python App -->
+  <g filter="url(#flat-shadow)">
+    <rect x="570" y="165" width="190" height="60" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1" />
+    <rect x="570" y="165" width="190" height="6" rx="2" fill="#f59e0b" />
+    <text x="665" y="197" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">video2gif App</text>
+    <text x="665" y="213" font-family="monospace" font-size="9" fill="#b45309" text-anchor="middle">Port 9003 (HTTP/SSE)</text>
+  </g>
+
+  <!-- Card 8: another_app Python App -->
+  <g filter="url(#flat-shadow)">
+    <rect x="570" y="250" width="190" height="60" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1" />
+    <rect x="570" y="250" width="190" height="6" rx="2" fill="#f59e0b" />
+    <text x="665" y="282" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">another_app App</text>
+    <text x="665" y="298" font-family="monospace" font-size="9" fill="#b45309" text-anchor="middle">Port 9004 (HTTP/WS)</text>
+  </g>
+
+  <!-- Card 9: Internet Upstream Target -->
+  <g filter="url(#flat-shadow)">
+    <rect x="570" y="450" width="190" height="70" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1" />
+    <rect x="570" y="450" width="190" height="6" rx="2" fill="#8b5cf6" />
+    <text x="665" y="482" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">Internet Upstream</text>
+    <text x="665" y="502" font-family="monospace" font-size="8" fill="#6d28d9" text-anchor="middle">https://example.com/</text>
+  </g>
+
+  <!-- ==================== 2. LINES & LABELS (FOREGROUND LAYER) ==================== -->
+
+  <!-- Client -> Nginx Server 1 (Port 443) -->
+  <path d="M 190 215 C 240 215, 240 135, 290 135" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
+  <rect x="207" y="145" width="66" height="18" rx="4" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" />
+  <text x="240" y="157" font-family="monospace" font-size="9" font-weight="bold" fill="#475569" text-anchor="middle">Port 443</text>
+
+  <!-- Client -> Nginx Server 2 (Port 9002) -->
+  <path d="M 190 230 L 290 230" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
+  <rect x="207" y="221" width="66" height="18" rx="4" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" />
+  <text x="240" y="233" font-family="monospace" font-size="9" font-weight="bold" fill="#475569" text-anchor="middle">Port 9002</text>
+
+  <!-- Client -> Nginx Server 3 (Port 9010) -->
+  <path d="M 190 245 C 240 245, 240 485, 290 485" fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
+  <rect x="207" y="345" width="66" height="18" rx="4" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" />
+  <text x="240" y="357" font-family="monospace" font-size="9" font-weight="bold" fill="#475569" text-anchor="middle">Port 9010</text>
+  
+  <!-- Nginx Server 1 -> service1 -->
+  <path d="M 480 135 L 570 135" fill="none" stroke="#16a34a" stroke-width="2" marker-end="url(#arrow-green)" />
+  <rect x="495" y="123" width="65" height="18" rx="4" fill="#ffffff" />
+  <text x="527" y="136" font-family="monospace" font-size="9" font-weight="bold" fill="#16a34a" text-anchor="middle">Direct Proxy /</text>
+
+  <!-- Nginx Server 2 -> video2gif -->
+  <path d="M 480 230 C 530 230, 520 215, 570 215" fill="none" stroke="#16a34a" stroke-width="2" marker-end="url(#arrow-green)" />
+  <rect x="495" y="208" width="65" height="18" rx="4" fill="#ffffff" />
+  <text x="527" y="221" font-family="monospace" font-size="9" font-weight="bold" fill="#16a34a" text-anchor="middle">/video2gif/</text>
+
+  <!-- Nginx Server 2 -> another_app -->
+  <path d="M 480 230 C 530 230, 520 295, 570 295" fill="none" stroke="#16a34a" stroke-width="2" marker-end="url(#arrow-green)" />
+  <rect x="495" y="260" width="65" height="18" rx="4" fill="#ffffff" />
+  <text x="527" y="273" font-family="monospace" font-size="9" font-weight="bold" fill="#16a34a" text-anchor="middle">/another_app/</text>
+
+  <!-- Nginx Server 3 -> Internet Upstream (Horizontally Aligned at Y: 485) -->
+  <path d="M 480 485 L 570 485" fill="none" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrow-purple)" />
+  <rect x="488" y="476" width="76" height="18" rx="4" fill="#ffffff" />
+  <text x="526" y="488" font-family="system-ui, -apple-system, sans-serif" font-size="8" font-weight="bold" fill="#7c3aed" text-anchor="middle">Internet Proxy</text>
+
+  <!-- Go Supervisor -> Python Apps (Monitoring, aligned at Y: 395) -->
+  <path d="M 480 395 L 810 395 L 810 110 L 760 110" fill="none" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arrow-blue)" />
+  <path d="M 810 195 L 760 195" fill="none" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arrow-blue)" />
+  <path d="M 810 280 L 760 280" fill="none" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arrow-blue)" />
+  <rect x="770" y="320" width="80" height="24" rx="4" fill="#ffffff" stroke="#cbd5e1" stroke-width="1" />
+  <text x="810" y="335" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="bold" fill="#2563eb" text-anchor="middle">Monitor &amp; Logs</text>
+
+  <!-- Go Supervisor -> Nginx Server 2 (Configure & Reload, Y: 360 to Y: 270) -->
+  <path d="M 385 360 L 385 270" fill="none" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arrow-blue)" />
+  <rect x="335" y="305" width="100" height="18" rx="4" fill="#ffffff" stroke="#cbd5e1" stroke-width="1" />
+  <text x="385" y="317" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="bold" fill="#2563eb" text-anchor="middle">Config &amp; Reload</text>
+</svg>

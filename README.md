@@ -243,7 +243,7 @@ This project uses a compiled native Go binary to function directly as a lightwei
 
 ### System Architecture & Flowchart
 
-![One for All Gateway Diagram](https://raw.githubusercontent.com/davislinyd/one4all/main/architecture.svg?v=4)
+![One for All Gateway Diagram](https://raw.githubusercontent.com/davislinyd/one4all/main/architecture_en.svg?v=4)
 
 ```mermaid
 graph LR
